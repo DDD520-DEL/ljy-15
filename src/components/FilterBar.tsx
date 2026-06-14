@@ -3,7 +3,7 @@ import { MapPin, DollarSign, RotateCcw, Search } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export function FilterBar() {
-  const { regions, fetchRegions, filters, setFilters, fetchArtists } = useStore();
+  const { regions, fetchRegions, filters, setFilters, resetFilters } = useStore();
   const [keyword, setKeyword] = useState(filters.keyword || '');
 
   useEffect(() => {
@@ -30,13 +30,7 @@ export function FilterBar() {
 
   const handleReset = () => {
     setKeyword('');
-    setFilters({
-      styles: undefined,
-      region: undefined,
-      priceMin: undefined,
-      priceMax: undefined,
-      keyword: undefined,
-    });
+    resetFilters();
   };
 
   const priceOptions = [

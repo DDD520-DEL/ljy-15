@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function StyleTagCloud({ onSelect }: Props) {
-  const { styles, fetchStyles, filters, setFilters, fetchArtists } = useStore();
+  const { styles, fetchStyles, filters, setFilters } = useStore();
 
   useEffect(() => {
     fetchStyles();
