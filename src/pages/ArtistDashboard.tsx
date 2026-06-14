@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, Clock, Loader2, RefreshCw, Bell, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, Clock, Loader2, RefreshCw, Bell, CheckCircle2, BarChart3 } from 'lucide-react';
 import type { Booking, Artist, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_FLOW } from '../../shared/types';
 import { updateBookingStatus, getArtists } from '../lib/api';
@@ -33,6 +33,7 @@ function canCancel(status: BookingStatus): boolean {
 }
 
 export function ArtistDashboard() {
+  const navigate = useNavigate();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [filterStatus, setFilterStatus] = useState<BookingStatus | 'all'>('all');
@@ -122,6 +123,15 @@ export function ArtistDashboard() {
           </Link>
 
           <div className="max-w-2xl mx-auto">
+            <div className="flex flex-wrap gap-3 mb-6">
+              <button
+                onClick={() => navigate('/artist-analytics')}
+                className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors"
+              >
+                <BarChart3 className="w-4 h-4" />
+                数据看板
+              </button>
+            </div>
             <h1 className="font-display text-3xl text-white mb-2">艺术家后台</h1>
             <p className="text-gray-400 mb-8">选择您的身份进入后台管理预约</p>
 
@@ -203,6 +213,13 @@ export function ArtistDashboard() {
                 最后更新：{formatTime(lastUpdated)}
               </p>
             </div>
+            <button
+              onClick={() => navigate('/artist-analytics')}
+              className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4" />
+              数据看板
+            </button>
             <button
               onClick={refresh}
               className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"

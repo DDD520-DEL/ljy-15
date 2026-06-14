@@ -138,3 +138,23 @@ export interface Notification {
   read: boolean;
   createdAt: string;
 }
+
+export interface DailyBookingTrend {
+  date: string;
+  count: number;
+}
+
+export interface RatingDistribution {
+  rating: number;
+  count: number;
+}
+
+export interface ArtistAnalytics {
+  bookingTrend: DailyBookingTrend[];
+  totalRevenue: number;
+  completedBookingsCount: number;
+  avgRevenuePerBooking: number;
+  ratingDistribution: RatingDistribution[];
+  avgRating: number;
+  totalReviews: number;
+}

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { artists, addArtistWork, removeArtistWork } from '../data/mockData';
-import type { Artist, WorkUploadForm } from '../../shared/types';
+import { artists, addArtistWork, removeArtistWork, bookings, allReviews } from '../data/mockData';
+import type { Artist, WorkUploadForm, ArtistAnalytics, DailyBookingTrend, RatingDistribution } from '../../shared/types';
 
 const router = Router();
 
@@ -120,6 +120,74 @@ router.delete('/:id/works/:workId', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: '删除作品失败'
+    });
+  }
+});
+
+router.get('/:id/analytics', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const artist = artists.find(a => a.id === id);
+    if (!artist) {
+      return res.status(404).json({
+        success: false,
+        message: '纹身师不存在'
+      });
+    }
+
+    const artistBookings = bookings.filter(b => b.artistId === id);
+    const artistReviews = allReviews.filter(r => r.artistId === id);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
+
+    const bookingTrend: DailyBookingTrend[] = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(thirtyDaysAgo);
+      date.setDate(thirtyDaysAgo.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      const count = artistBookings.filter(b => {
+        const bookingDate = new Date(b.createdAt).toISOString().split('T')[0];
+        return bookingDate === dateStr;
+      }).length;
+      bookingTrend.push({ date: dateStr, count });
+    }
+
+    const completedBookings = artistBookings.filter(b => b.status === 'completed');
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + Math.round((b.budgetMin + b.budgetMax) / 2), 0);
+    const completedBookingsCount = completedBookings.length;
+    const avgRevenuePerBooking = completedBookingsCount > 0 ? Math.round(totalRevenue / completedBookingsCount) : 0;
+
+    const ratingDistribution: RatingDistribution[] = [1, 2, 3, 4, 5].map(rating => ({
+      rating,
+      count: artistReviews.filter(r => r.rating === rating).length
+    }));
+
+    const totalReviews = artistReviews.length;
+    const avgRating = totalReviews > 0
+      ? Math.round(artistReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews * 10) / 10
+      : 0;
+
+    const analytics: ArtistAnalytics = {
+      bookingTrend,
+      totalRevenue,
+      completedBookingsCount,
+      avgRevenuePerBooking,
+      ratingDistribution,
+      avgRating,
+      totalReviews
+    };
+
+    res.json({
+      success: true,
+      data: analytics
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: '获取统计数据失败'
     });
   }
 });

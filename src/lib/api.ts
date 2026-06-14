@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -241,4 +241,9 @@ export async function removeArtistWork(artistId: string, workId: string): Promis
     message: res.message,
     artist: res.data,
   };
+}
+
+export async function getArtistAnalytics(artistId: string): Promise<ArtistAnalytics | null> {
+  const res = await request<ArtistAnalytics>(`/artists/${artistId}/analytics`);
+  return res.success && res.data ? res.data : null;
 }
