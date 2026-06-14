@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Star, Loader2 } from 'lucide-react';
 import type { Booking } from '../../shared/types';
-import { submitReview, updateBookingStatus } from '../lib/api';
+import { submitReview } from '../lib/api';
 
 interface Props {
   open: boolean;
@@ -44,7 +44,6 @@ export function ReviewModal({ open, booking, artistId, onClose, onSubmitted }: P
       });
 
       if (result.success) {
-        await updateBookingStatus(booking.id, 'completed');
         onSubmitted();
         setRating(0);
         setComment('');

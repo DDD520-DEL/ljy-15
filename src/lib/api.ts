@@ -102,10 +102,10 @@ export async function getBookings(contact?: string, status?: string): Promise<Bo
   return res.success && res.data ? res.data : [];
 }
 
-export async function updateBookingStatus(bookingId: string, status: string): Promise<{ success: boolean; message?: string }> {
+export async function updateBookingStatus(bookingId: string, status?: string, reviewId?: string): Promise<{ success: boolean; message?: string }> {
   const res = await request<Booking>(`/bookings/${bookingId}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, reviewId }),
   });
   return {
     success: res.success,

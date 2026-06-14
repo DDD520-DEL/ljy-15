@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { allReviews, artists } from '../data/mockData';
+import { allReviews, artists, bookings } from '../data/mockData';
 import type { Review } from '../../shared/types';
 
 const router = Router();
@@ -65,6 +65,12 @@ router.post('/', (req: Request, res: Response) => {
     };
 
     allReviews.push(review);
+
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      booking.reviewId = review.id;
+      booking.status = 'completed';
+    }
 
     const artistReviews = allReviews.filter(r => r.artistId === artistId);
     artist.avgRating = Math.round(

@@ -32,9 +32,9 @@ router.get('/', (req: Request, res: Response) => {
 router.patch('/:id/status', (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, reviewId } = req.body;
 
-    if (!['pending', 'completed', 'cancelled'].includes(status)) {
+    if (status && !['pending', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({
         success: false,
         message: '无效的状态值'
@@ -49,17 +49,22 @@ router.patch('/:id/status', (req: Request, res: Response) => {
       });
     }
 
-    booking.status = status;
+    if (status) {
+      booking.status = status;
+    }
+    if (reviewId !== undefined) {
+      booking.reviewId = reviewId || undefined;
+    }
 
     res.json({
       success: true,
       data: booking,
-      message: '状态更新成功'
+      message: '更新成功'
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: '更新状态失败'
+      message: '更新失败'
     });
   }
 });
