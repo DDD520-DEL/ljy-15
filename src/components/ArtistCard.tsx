@@ -1,10 +1,24 @@
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, DollarSign } from 'lucide-react';
+import { Heart, MapPin, DollarSign, Star } from 'lucide-react';
 import type { Artist } from '../../shared/types';
 import { useStore } from '../store/useStore';
 
 interface Props {
   artist: Artist;
+}
+
+function StarRating({ rating, size = 12 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(star => (
+        <Star
+          key={star}
+          size={size}
+          className={star <= Math.round(rating) ? 'text-gold fill-gold' : 'text-gray-600'}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function ArtistCard({ artist }: Props) {
@@ -78,7 +92,11 @@ export function ArtistCard({ artist }: Props) {
             ¥{artist.priceMin}-{artist.priceMax}
             <span className="text-gray-500 text-xs font-normal">/{artist.priceUnit}</span>
           </div>
-          <span className="text-gray-500 text-xs">{artist.works.length} 件作品</span>
+          <div className="flex items-center gap-1.5">
+            <StarRating rating={artist.avgRating} size={11} />
+            <span className="text-gold text-xs font-medium">{artist.avgRating}</span>
+            <span className="text-gray-500 text-xs">({artist.reviewCount})</span>
+          </div>
         </div>
       </div>
     </Link>

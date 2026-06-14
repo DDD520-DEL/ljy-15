@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, ApiResponse, ArtistQuery } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery } from '../../shared/types';
 
 const API_BASE = '/api';
 
@@ -73,5 +73,42 @@ export async function submitBooking(data: BookingRequest): Promise<{ success: bo
     success: res.success,
     message: res.message,
     booking: res.data,
+  };
+}
+
+export async function getArtistReviews(artistId: string): Promise<Review[]> {
+  const res = await request<Review[]>(`/reviews/artist/${artistId}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function submitReview(data: { artistId: string; bookingId: string; rating: number; comment: string; reviewer: string }): Promise<{ success: boolean; message?: string; review?: Review }> {
+  const res = await request<Review>('/reviews', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    review: res.data,
+  };
+}
+
+export async function getBookings(contact?: string, status?: string): Promise<Booking[]> {
+  const params = new URLSearchParams();
+  if (contact) params.set('contact', contact);
+  if (status) params.set('status', status);
+  const queryStr = params.toString();
+  const res = await request<Booking[]>(`/bookings${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function updateBookingStatus(bookingId: string, status: string): Promise<{ success: boolean; message?: string }> {
+  const res = await request<Booking>(`/bookings/${bookingId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
   };
 }

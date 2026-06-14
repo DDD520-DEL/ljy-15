@@ -1,4 +1,4 @@
-import type { Artist, Style } from '../../shared/types';
+import type { Artist, Style, Review } from '../../shared/types';
 
 export const styles: Style[] = [
   { id: 'old-school', name: 'Old School', nameEn: 'Old School', popularity: 95 },
@@ -49,6 +49,25 @@ const bios = [
   '女性纹身师，细腻柔美的风格，特别擅长小清新与花卉题材。'
 ];
 
+const reviewerNames = [
+  '小龙', '阿杰', '小美', '大壮', '小丽',
+  '老王', '小雪', '阿强', '小慧', '大海',
+  '小云', '阿飞', '小月', '大勇', '小春'
+];
+
+const reviewComments = [
+  '非常满意！纹身师技术精湛，图案还原度极高，整个过程也很舒适。',
+  '效果超出预期，细节处理得很好，恢复期也很顺利，强烈推荐！',
+  '很专业的纹身师，沟通很顺畅，最终效果我很喜欢。',
+  '服务态度很好，环境也很干净，作品质量没得说。',
+  '第一次纹身，纹身师很有耐心地解答问题，作品也很满意。',
+  '已经是第三次来了，每次都很满意，会继续光顾的。',
+  '朋友推荐来的，确实不错，图案设计很有创意。',
+  '手法很稳，线条很流畅，整体效果非常棒！',
+  '预约很方便，等候时间不长，纹身过程也很快，效果很好。',
+  '细节处理得很到位，上色也很均匀，非常满意这次的作品。'
+];
+
 function generateWorks(artistId: string, artistStyles: string[], count: number) {
   const works = [];
   for (let i = 0; i < count; i++) {
@@ -66,6 +85,24 @@ function generateWorks(artistId: string, artistStyles: string[], count: number) 
   return works;
 }
 
+function generateReviews(artistId: string): Review[] {
+  const reviews: Review[] = [];
+  const count = 2 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const reviewId = `review-${artistId}-${i}`;
+    reviews.push({
+      id: reviewId,
+      artistId,
+      bookingId: `booking-${artistId}-${i}`,
+      rating: 3 + Math.floor(Math.random() * 3),
+      comment: reviewComments[Math.floor(Math.random() * reviewComments.length)],
+      reviewer: reviewerNames[Math.floor(Math.random() * reviewerNames.length)],
+      createdAt: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000).toISOString()
+    });
+  }
+  return reviews;
+}
+
 function generateArtists(): Artist[] {
   const artists: Artist[] = [];
   for (let i = 0; i < 15; i++) {
@@ -79,8 +116,14 @@ function generateArtists(): Artist[] {
     }
     const region = regions[i % regions.length];
     const priceBase = 300 + Math.floor(Math.random() * 8) * 300;
+    const artistId = `artist-${i + 1}`;
+    const artistReviews = generateReviews(artistId);
+    const avgRating = artistReviews.length > 0
+      ? Math.round(artistReviews.reduce((sum, r) => sum + r.rating, 0) / artistReviews.length * 10) / 10
+      : 0;
+
     artists.push({
-      id: `artist-${i + 1}`,
+      id: artistId,
       name: artistNames[i],
       avatar: `https://picsum.photos/seed/artist-${i + 1}-avatar/200/200`,
       bio: bios[i],
@@ -90,14 +133,31 @@ function generateArtists(): Artist[] {
       priceMax: priceBase + 500 + Math.floor(Math.random() * 1500),
       priceUnit: '小时',
       styles: artistStyles,
-      works: generateWorks(`artist-${i + 1}`, artistStyles, 5 + Math.floor(Math.random() * 4)),
+      works: generateWorks(artistId, artistStyles, 5 + Math.floor(Math.random() * 4)),
+      avgRating,
+      reviewCount: artistReviews.length,
       createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString()
     });
+
+    allReviews.push(...artistReviews);
   }
   return artists;
 }
 
+export const allReviews: Review[] = [];
 export const artists: Artist[] = generateArtists();
-
 export let favorites: string[] = [];
-export let bookings: any[] = [];
+
+export let bookings: {
+  id: string;
+  artistId: string;
+  style: string;
+  size: string;
+  budgetMin: number;
+  budgetMax: number;
+  contact: string;
+  note?: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  reviewId?: string;
+  createdAt: string;
+}[] = [];
