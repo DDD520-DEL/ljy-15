@@ -73,17 +73,41 @@ function generateWorks(artistId: string, artistStyles: string[], count: number) 
   const works = [];
   for (let i = 0; i < count; i++) {
     const style = artistStyles[i % artistStyles.length];
-    const keyword = imageKeywords[Math.floor(Math.random() * imageKeywords.length)];
     const seed = `${artistId}-${i}-${Date.now()}`;
     works.push({
       id: `${artistId}-work-${i}`,
       title: `${style}作品 ${i + 1}`,
       image: `https://picsum.photos/seed/${encodeURIComponent(seed)}/600/${400 + Math.floor(Math.random() * 400)}`,
       style,
-      artistId
+      artistId,
+      description: `这是一件精心创作的${style}风格纹身作品，融合了传统技法与现代审美，每一针每一线都倾注了心血。`,
+      createdAt: new Date(Date.now() - Math.random() * 180 * 24 * 60 * 60 * 1000).toISOString()
     });
   }
   return works;
+}
+
+export function addArtistWork(artistId: string, work: { title: string; image: string; style: string; description?: string }): Artist | null {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return null;
+  const newWork = {
+    id: `${artistId}-work-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: work.title,
+    image: work.image,
+    style: work.style,
+    artistId,
+    description: work.description || '',
+    createdAt: new Date().toISOString()
+  };
+  artist.works.unshift(newWork);
+  return artist;
+}
+
+export function removeArtistWork(artistId: string, workId: string): Artist | null {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return null;
+  artist.works = artist.works.filter(w => w.id !== workId);
+  return artist;
 }
 
 function generateReviews(artistId: string): Review[] {

@@ -35,6 +35,15 @@ export interface Work {
   image: string;
   style: string;
   artistId: string;
+  description?: string;
+  createdAt?: string;
+}
+
+export interface WorkUploadForm {
+  title: string;
+  description: string;
+  style: string;
+  image: string;
 }
 
 export interface Artist {

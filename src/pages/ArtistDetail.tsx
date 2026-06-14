@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Heart, MapPin, DollarSign, Calendar, Loader2, X, Star } from 'lucide-react';
+import { ArrowLeft, Heart, MapPin, DollarSign, Calendar, Loader2, Star, Upload } from 'lucide-react';
 import type { Artist, Review, Booking } from '../../shared/types';
 import { getArtist, getArtistReviews, getBookings } from '../lib/api';
 import { useStore } from '../store/useStore';
 import { Navbar } from '../components/Navbar';
 import { BookingModal } from '../components/BookingModal';
 import { ReviewModal } from '../components/ReviewModal';
+import { WorkUploadModal } from '../components/WorkUploadModal';
+import { PortfolioWaterfall } from '../components/PortfolioWaterfall';
+import { WorkLightbox } from '../components/WorkLightbox';
 
 function StarRating({ rating, size = 16 }: { rating: number; size?: number }) {
   return (
@@ -64,9 +67,11 @@ export function ArtistDetail() {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const { toggleFavorite, isFavorite, fetchFavorites } = useStore();
   const fav = artist ? isFavorite(artist.id) : false;
+  const isOwner = true;
 
   const fetchData = async () => {
     if (!id) return;
@@ -207,27 +212,27 @@ export function ArtistDetail() {
         </div>
 
         <div className="mb-10">
-          <h2 className="font-display text-2xl text-white mb-6">代表作品</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {artist.works.map((work, idx) => (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <h2 className="font-display text-2xl text-white">
+              作品集 <span className="text-gray-500 text-lg ml-2">({artist.works.length})</span>
+            </h2>
+            {isOwner && (
               <button
-                key={work.id}
-                onClick={() => setLightboxIndex(idx)}
-                className="group relative aspect-square overflow-hidden bg-ink-100 border border-white/5 hover:border-blood/50 transition-all"
+                onClick={() => setUploadOpen(true)}
+                className="btn-primary flex items-center gap-2 self-start sm:self-auto"
               >
-                <img
-                  src={work.image}
-                  alt={work.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-end p-3">
-                  <span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                    {work.style}
-                  </span>
-                </div>
+                <Upload className="w-4 h-4" />
+                上传作品
               </button>
-            ))}
+            )}
           </div>
+          <PortfolioWaterfall
+            works={artist.works}
+            artist={artist}
+            isOwner={isOwner}
+            onWorkClick={idx => setLightboxIndex(idx)}
+            onWorksUpdated={updatedArtist => setArtist(updatedArtist)}
+          />
         </div>
 
         <div className="mb-10">
@@ -294,49 +299,13 @@ export function ArtistDetail() {
         </div>
       </div>
 
-      {lightboxIndex !== null && artist.works[lightboxIndex] && (
-        <div
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
-          onClick={() => setLightboxIndex(null)}
-        >
-          <button
-            className="absolute top-6 right-6 p-2 text-white/70 hover:text-white transition-colors"
-            onClick={() => setLightboxIndex(null)}
-          >
-            <X className="w-8 h-8" />
-          </button>
-          <button
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 text-white/70 hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxIndex(i => i !== null ? (i - 1 + artist.works.length) % artist.works.length : null);
-            }}
-          >
-            <ArrowLeft className="w-8 h-8 rotate-180" />
-          </button>
-          <img
-            src={artist.works[lightboxIndex].image}
-            alt={artist.works[lightboxIndex].title}
-            className="max-w-full max-h-[85vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-white/70 hover:text-white transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxIndex(i => i !== null ? (i + 1) % artist.works.length : null);
-            }}
-          >
-            <ArrowLeft className="w-8 h-8" />
-          </button>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center">
-            <div className="text-white font-medium">{artist.works[lightboxIndex].title}</div>
-            <div className="text-gray-400 text-sm mt-1">
-              {lightboxIndex + 1} / {artist.works.length}
-            </div>
-          </div>
-        </div>
-      )}
+      <WorkLightbox
+        works={artist.works}
+        currentIndex={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onPrev={() => setLightboxIndex(i => i !== null ? (i - 1 + artist.works.length) % artist.works.length : null)}
+        onNext={() => setLightboxIndex(i => i !== null ? (i + 1) % artist.works.length : null)}
+      />
 
       <BookingModal
         open={bookingOpen}
@@ -351,6 +320,15 @@ export function ArtistDetail() {
           artistId={artist.id}
           onClose={() => setReviewBooking(null)}
           onSubmitted={fetchData}
+        />
+      )}
+
+      {uploadOpen && (
+        <WorkUploadModal
+          open={uploadOpen}
+          artist={artist}
+          onClose={() => setUploadOpen(false)}
+          onUploaded={updatedArtist => setArtist(updatedArtist)}
         />
       )}
     </div>

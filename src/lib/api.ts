@@ -219,3 +219,26 @@ export async function markAllNotificationsRead(contact?: string, artistId?: stri
     message: res.message,
   };
 }
+
+export async function addArtistWork(artistId: string, data: { title: string; image: string; style: string; description?: string }): Promise<{ success: boolean; message?: string; artist?: Artist }> {
+  const res = await request<Artist>(`/artists/${artistId}/works`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    artist: res.data,
+  };
+}
+
+export async function removeArtistWork(artistId: string, workId: string): Promise<{ success: boolean; message?: string; artist?: Artist }> {
+  const res = await request<Artist>(`/artists/${artistId}/works/${workId}`, {
+    method: 'DELETE',
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    artist: res.data,
+  };
+}
