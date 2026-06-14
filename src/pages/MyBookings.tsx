@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, Calendar, Clock, Loader2, User, RefreshCw, Bell, CheckCircle } from 'lucide-react';
 import type { Booking, Artist, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS } from '../../shared/types';
@@ -21,12 +21,14 @@ function formatTime(timestamp: number) {
 }
 
 export function MyBookings() {
+  const [searchParams] = useSearchParams();
   const [contact, setContact] = useState('');
   const [searchContact, setSearchContact] = useState('');
   const [searched, setSearched] = useState(false);
   const [artists, setArtists] = useState<Record<string, Artist | null>>({});
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialSearchDone = useRef(false);
   const { setUser: setNotificationUser } = useNotificationStore();
 
   const { bookings, loading, hasUpdates, lastUpdated, refresh, dismissUpdates } = useRealtimeBookings({
@@ -34,6 +36,21 @@ export function MyBookings() {
     enabled: searched,
     pollInterval: 2000,
   });
+
+  useEffect(() => {
+    if (initialSearchDone.current) return;
+
+    const contactFromUrl = searchParams.get('contact');
+    if (contactFromUrl && contactFromUrl.trim()) {
+      const trimmedContact = contactFromUrl.trim();
+      setContact(trimmedContact);
+      setSearchContact(trimmedContact);
+      setSearched(true);
+      setArtists({});
+      setNotificationUser(trimmedContact, undefined);
+      initialSearchDone.current = true;
+    }
+  }, [searchParams, setNotificationUser]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +60,7 @@ export function MyBookings() {
     setSearched(true);
     setArtists({});
     setNotificationUser(trimmedContact, undefined);
+    initialSearchDone.current = true;
   };
 
   useEffect(() => {

@@ -119,7 +119,11 @@ export function Notifications() {
     if (!notification.read) {
       await markAsRead(notification.id);
     }
-    navigate(`/my-bookings`);
+    if (identityMode === 'user' && searchContact) {
+      navigate(`/my-bookings?contact=${encodeURIComponent(searchContact)}`);
+    } else {
+      navigate(`/my-bookings`);
+    }
   };
 
   const unreadNotifications = notifications.filter(n => !n.read);
