@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #0A0A0A;
+  color: #E5E5E5;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse at top, rgba(185, 28, 28, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(212, 165, 116, 0.05) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background-color: #B91C1C;
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A2A2A;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B91C1C;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blood hover:bg-blood-light text-white px-6 py-3 font-medium transition-all duration-300 border border-blood hover:shadow-[0_0_20px_rgba(185,28,28,0.4)] active:translate-y-px;
+  }
+
+  .btn-outline {
+    @apply bg-transparent hover:bg-blood/10 text-white border border-white/30 hover:border-blood px-6 py-3 font-medium transition-all duration-300;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-white/5 text-gray-300 hover:text-white px-4 py-2 transition-all duration-300;
+  }
+
+  .tag-chip {
+    @apply inline-flex items-center px-3 py-1 text-sm border border-white/20 text-gray-300 hover:border-blood hover:text-blood cursor-pointer transition-all duration-200;
+  }
+
+  .tag-chip-active {
+    @apply bg-blood border-blood text-white;
+  }
+
+  .card {
+    @apply bg-graphite border border-white/5 hover:border-blood/50 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full bg-transparent border-0 border-b border-white/20 focus:border-blood text-white px-0 py-3 outline-none transition-colors duration-300 placeholder:text-gray-500;
+  }
+
+  .divider {
+    @apply h-px bg-gradient-to-r from-transparent via-blood/50 to-transparent;
+  }
+}
