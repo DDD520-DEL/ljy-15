@@ -1,12 +1,32 @@
 import { Router, Request, Response } from 'express';
 import { bookings, artists } from '../data/mockData';
-import type { BookingRequest, Booking } from '../../shared/types';
+import type { BookingRequest, Booking, BookingStatus } from '../../shared/types';
+import { BOOKING_STATUS_FLOW } from '../../shared/types';
 
 const router = Router();
 
+const ALL_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+
+function canTransition(from: BookingStatus, to: BookingStatus): boolean {
+  if (to === 'cancelled' && from !== 'completed' && from !== 'cancelled') {
+    return true;
+  }
+  const fromIndex = BOOKING_STATUS_FLOW.indexOf(from);
+  const toIndex = BOOKING_STATUS_FLOW.indexOf(to);
+  return fromIndex !== -1 && toIndex !== -1 && toIndex === fromIndex + 1;
+}
+
+function getNextStatus(current: BookingStatus): BookingStatus | null {
+  const index = BOOKING_STATUS_FLOW.indexOf(current);
+  if (index === -1 || index === BOOKING_STATUS_FLOW.length - 1) {
+    return null;
+  }
+  return BOOKING_STATUS_FLOW[index + 1];
+}
+
 router.get('/', (req: Request, res: Response) => {
   try {
-    const { contact, status } = req.query;
+    const { contact, status, artistId } = req.query;
     let filtered = [...bookings];
 
     if (contact && typeof contact === 'string') {
@@ -16,6 +36,12 @@ router.get('/', (req: Request, res: Response) => {
     if (status && typeof status === 'string') {
       filtered = filtered.filter(b => b.status === status);
     }
+
+    if (artistId && typeof artistId === 'string') {
+      filtered = filtered.filter(b => b.artistId === artistId);
+    }
+
+    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     res.json({
       success: true,
@@ -29,12 +55,36 @@ router.get('/', (req: Request, res: Response) => {
   }
 });
 
+router.get('/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const booking = bookings.find(b => b.id === id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: '预约不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: booking
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '获取预约详情失败'
+    });
+  }
+});
+
 router.patch('/:id/status', (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, reviewId } = req.body;
 
-    if (status && !['pending', 'completed', 'cancelled'].includes(status)) {
+    if (status && !ALL_STATUSES.includes(status as BookingStatus)) {
       return res.status(400).json({
         success: false,
         message: '无效的状态值'
@@ -49,9 +99,17 @@ router.patch('/:id/status', (req: Request, res: Response) => {
       });
     }
 
-    if (status) {
-      booking.status = status;
+    if (status && status !== booking.status) {
+      if (!canTransition(booking.status, status as BookingStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: `无法从「${booking.status}」状态变更为「${status}」状态`
+        });
+      }
+      booking.status = status as BookingStatus;
+      booking.statusUpdatedAt = new Date().toISOString();
     }
+
     if (reviewId !== undefined) {
       booking.reviewId = reviewId || undefined;
     }
@@ -92,7 +150,8 @@ router.post('/', (req: Request, res: Response) => {
       id: `booking-${Date.now()}`,
       ...body,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      statusUpdatedAt: new Date().toISOString()
     };
 
     bookings.push(booking);

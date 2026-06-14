@@ -1,4 +1,4 @@
-import type { Artist, Style, Review } from '../../shared/types';
+import type { Artist, Style, Review, Booking } from '../../shared/types';
 
 export const styles: Style[] = [
   { id: 'old-school', name: 'Old School', nameEn: 'Old School', popularity: 95 },
@@ -148,16 +148,4 @@ export const allReviews: Review[] = [];
 export const artists: Artist[] = generateArtists();
 export let favorites: string[] = [];
 
-export let bookings: {
-  id: string;
-  artistId: string;
-  style: string;
-  size: string;
-  budgetMin: number;
-  budgetMax: number;
-  contact: string;
-  note?: string;
-  status: 'pending' | 'completed' | 'cancelled';
-  reviewId?: string;
-  createdAt: string;
-}[] = [];
+export let bookings: Booking[] = [];

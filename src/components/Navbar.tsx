@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, Heart, Search } from 'lucide-react';
+import { Droplet, Heart, Search, Calendar, Palette } from 'lucide-react';
 
 export function Navbar() {
   const location = useLocation();
@@ -25,6 +25,15 @@ export function Navbar() {
               作品墙
             </Link>
             <Link
+              to="/my-bookings"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/my-bookings' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              我的预约
+            </Link>
+            <Link
               to="/favorites"
               className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
                 location.pathname === '/favorites' ? 'text-blood' : 'text-gray-400 hover:text-white'
@@ -33,17 +42,38 @@ export function Navbar() {
               <Heart className="w-4 h-4" />
               我的收藏
             </Link>
+            <Link
+              to="/artist-dashboard"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ml-2 ${
+                location.pathname === '/artist-dashboard' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Palette className="w-4 h-4" />
+              艺术家后台
+            </Link>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button className="md:hidden p-2 text-gray-400 hover:text-white transition-colors">
-              <Search className="w-5 h-5" />
-            </button>
+          <div className="flex items-center gap-1">
+            <Link
+              to="/my-bookings"
+              className="md:hidden p-2 text-gray-400 hover:text-blood transition-colors"
+              title="我的预约"
+            >
+              <Calendar className="w-5 h-5" />
+            </Link>
             <Link
               to="/favorites"
               className="md:hidden p-2 text-gray-400 hover:text-blood transition-colors"
+              title="我的收藏"
             >
               <Heart className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/artist-dashboard"
+              className="md:hidden p-2 text-gray-400 hover:text-blood transition-colors"
+              title="艺术家后台"
+            >
+              <Palette className="w-5 h-5" />
             </Link>
           </div>
         </div>
