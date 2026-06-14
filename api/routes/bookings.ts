@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { bookings, artists, lastBookingUpdate, touchBookingUpdate } from '../data/mockData';
+import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification } from '../data/mockData';
 import type { BookingRequest, Booking, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_FLOW } from '../../shared/types';
 
@@ -187,9 +187,16 @@ router.patch('/:id/status', (req: Request, res: Response) => {
           message: `无法从「${booking.status}」状态变更为「${status}」状态`
         });
       }
+      const oldStatus = booking.status;
       booking.status = status as BookingStatus;
       booking.statusUpdatedAt = new Date().toISOString();
       touchBookingUpdate();
+
+      if (status === 'cancelled') {
+        createNotification('booking_cancelled', booking, oldStatus);
+      } else {
+        createNotification('booking_status_changed', booking, oldStatus);
+      }
     }
 
     if (reviewId !== undefined) {
@@ -238,6 +245,7 @@ router.post('/', (req: Request, res: Response) => {
 
     bookings.push(booking);
     touchBookingUpdate();
+    createNotification('booking_created', booking);
 
     res.status(201).json({
       success: true,

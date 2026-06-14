@@ -98,3 +98,19 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
 }
+
+export type NotificationType = 'booking_status_changed' | 'booking_cancelled' | 'booking_created';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  bookingId: string;
+  artistId: string;
+  contact?: string;
+  oldStatus?: BookingStatus;
+  newStatus?: BookingStatus;
+  title: string;
+  content: string;
+  read: boolean;
+  createdAt: string;
+}

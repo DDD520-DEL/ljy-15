@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification } from '../../shared/types';
 
 const API_BASE = '/api';
 
@@ -139,5 +139,66 @@ export async function updateBookingStatus(bookingId: string, status?: BookingSta
     success: res.success,
     message: res.message,
     booking: res.data,
+  };
+}
+
+export async function getNotifications(contact?: string, artistId?: string): Promise<{ data: Notification[]; timestamp: number }> {
+  const params = new URLSearchParams();
+  if (contact) params.set('contact', contact);
+  if (artistId) params.set('artistId', artistId);
+  const queryStr = params.toString();
+  const res = await request<Notification[] & { timestamp: number }>(`/notifications${queryStr ? `?${queryStr}` : ''}`);
+  return {
+    data: res.success && res.data ? (res.data as any).data || res.data : [],
+    timestamp: (res.data as any)?.timestamp || Date.now(),
+  };
+}
+
+export async function getUnreadNotificationCount(contact?: string, artistId?: string): Promise<number> {
+  const params = new URLSearchParams();
+  if (contact) params.set('contact', contact);
+  if (artistId) params.set('artistId', artistId);
+  const queryStr = params.toString();
+  const res = await request<{ count: number }>(`/notifications/unread-count${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? (res.data as any).count || 0 : 0;
+}
+
+export async function listenNotificationUpdates(
+  since: number,
+  contact?: string,
+  artistId?: string
+): Promise<{ data: Notification[]; timestamp: number; hasUpdates: boolean; unreadCount: number }> {
+  const params = new URLSearchParams();
+  params.set('since', String(since));
+  if (contact) params.set('contact', contact);
+  if (artistId) params.set('artistId', artistId);
+  const queryStr = params.toString();
+  const res = await request<any>(`/notifications/updates?${queryStr}`);
+  return {
+    data: res.success && res.data ? res.data.data || [] : [],
+    timestamp: res.data?.timestamp || Date.now(),
+    hasUpdates: res.data?.hasUpdates || false,
+    unreadCount: res.data?.unreadCount || 0,
+  };
+}
+
+export async function markNotificationRead(id: string): Promise<{ success: boolean; message?: string }> {
+  const res = await request(`/notifications/${id}/read`, {
+    method: 'PATCH',
+  });
+  return {
+    success: res.success,
+    message: res.message,
+  };
+}
+
+export async function markAllNotificationsRead(contact?: string, artistId?: string): Promise<{ success: boolean; message?: string }> {
+  const res = await request('/notifications/read-all', {
+    method: 'PATCH',
+    body: JSON.stringify({ contact, artistId }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
   };
 }

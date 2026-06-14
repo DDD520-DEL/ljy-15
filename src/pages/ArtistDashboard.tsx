@@ -8,6 +8,7 @@ import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { Navbar } from '../components/Navbar';
 import { BookingStatusBadge } from '../components/BookingStatusBadge';
 import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -38,6 +39,7 @@ export function ArtistDashboard() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { setUser: setNotificationUser, clearUser: clearNotificationUser } = useNotificationStore();
 
   const { bookings, loading, hasUpdates, lastUpdated, refresh, dismissUpdates } = useRealtimeBookings({
     artistId: selectedArtist?.id,
@@ -45,6 +47,17 @@ export function ArtistDashboard() {
     enabled: !!selectedArtist,
     pollInterval: 2000,
   });
+
+  useEffect(() => {
+    if (selectedArtist) {
+      setNotificationUser(undefined, selectedArtist.id);
+    }
+    return () => {
+      if (selectedArtist) {
+        clearNotificationUser();
+      }
+    };
+  }, [selectedArtist?.id]);
 
   const fetchArtists = async () => {
     const data = await getArtists();

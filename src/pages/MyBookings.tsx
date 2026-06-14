@@ -8,6 +8,7 @@ import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { Navbar } from '../components/Navbar';
 import { BookingStatusBadge } from '../components/BookingStatusBadge';
 import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -26,6 +27,7 @@ export function MyBookings() {
   const [artists, setArtists] = useState<Record<string, Artist | null>>({});
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { setUser: setNotificationUser } = useNotificationStore();
 
   const { bookings, loading, hasUpdates, lastUpdated, refresh, dismissUpdates } = useRealtimeBookings({
     contact: searched ? searchContact : undefined,
@@ -36,9 +38,11 @@ export function MyBookings() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contact.trim()) return;
-    setSearchContact(contact.trim());
+    const trimmedContact = contact.trim();
+    setSearchContact(trimmedContact);
     setSearched(true);
     setArtists({});
+    setNotificationUser(trimmedContact, undefined);
   };
 
   useEffect(() => {

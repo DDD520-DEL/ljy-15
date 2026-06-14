@@ -1,4 +1,5 @@
-import type { Artist, Style, Review, Booking } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus } from '../../shared/types';
+import { BOOKING_STATUS_LABELS } from '../../shared/types';
 
 export const styles: Style[] = [
   { id: 'old-school', name: 'Old School', nameEn: 'Old School', popularity: 95 },
@@ -153,4 +154,89 @@ export let lastBookingUpdate = Date.now();
 
 export function touchBookingUpdate() {
   lastBookingUpdate = Date.now();
+}
+
+export let notifications: Notification[] = [];
+export let lastNotificationUpdate = Date.now();
+
+export function touchNotificationUpdate() {
+  lastNotificationUpdate = Date.now();
+}
+
+export function createNotification(
+  type: Notification['type'],
+  booking: Booking,
+  oldStatus?: BookingStatus
+): Notification {
+  let title = '';
+  let content = '';
+  const artist = artists.find(a => a.id === booking.artistId);
+  const artistName = artist ? artist.name : '纹身师';
+
+  if (type === 'booking_created') {
+    title = '新预约申请';
+    content = `${booking.style} - 您有新的预约申请待处理`;
+  } else if (type === 'booking_cancelled') {
+    title = '预约已取消';
+    content = `${booking.style} - 该预约已被取消`;
+  } else if (type === 'booking_status_changed') {
+    const newStatusLabel = BOOKING_STATUS_LABELS[booking.status];
+    title = '预约状态更新';
+    content = `${artistName} 的预约「${booking.style}」状态已变更为「${newStatusLabel}」`;
+  }
+
+  const notification: Notification = {
+    id: `notification-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    bookingId: booking.id,
+    artistId: booking.artistId,
+    contact: booking.contact,
+    oldStatus,
+    newStatus: booking.status,
+    title,
+    content,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+
+  notifications.unshift(notification);
+  touchNotificationUpdate();
+  return notification;
+}
+
+export function getNotificationsByContact(contact: string): Notification[] {
+  return notifications.filter(n => n.contact === contact);
+}
+
+export function getNotificationsByArtistId(artistId: string): Notification[] {
+  return notifications.filter(n => n.artistId === artistId);
+}
+
+export function markNotificationAsRead(id: string): boolean {
+  const notification = notifications.find(n => n.id === id);
+  if (notification) {
+    notification.read = true;
+    touchNotificationUpdate();
+    return true;
+  }
+  return false;
+}
+
+export function markAllNotificationsAsRead(contact?: string, artistId?: string): boolean {
+  let hasUpdate = false;
+  notifications.forEach(n => {
+    if (!n.read) {
+      if (contact && n.contact === contact) {
+        n.read = true;
+        hasUpdate = true;
+      } else if (artistId && n.artistId === artistId) {
+        n.read = true;
+        hasUpdate = true;
+      }
+    }
+  });
+  if (hasUpdate) {
+    touchNotificationUpdate();
+  }
+  return hasUpdate;
 }
