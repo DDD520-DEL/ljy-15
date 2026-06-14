@@ -90,8 +90,8 @@ export function ArtistDetail() {
 
   useEffect(() => {
     if (!artist) return;
-    getBookings(undefined, 'completed').then(bookings => {
-      const unreviewed = bookings.filter(
+    getBookings(undefined, 'completed').then(({ data }) => {
+      const unreviewed = data.filter(
         b => b.artistId === artist.id && !b.reviewId
       );
       setCompletedBookings(unreviewed);

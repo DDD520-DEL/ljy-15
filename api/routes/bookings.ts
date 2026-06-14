@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { bookings, artists } from '../data/mockData';
+import { bookings, artists, lastBookingUpdate, touchBookingUpdate } from '../data/mockData';
 import type { BookingRequest, Booking, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_FLOW } from '../../shared/types';
 
 const router = Router();
 
 const ALL_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'];
+const LONG_POLL_TIMEOUT = 25000;
+const POLL_INTERVAL = 500;
 
 function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   if (to === 'cancelled' && from !== 'completed' && from !== 'cancelled') {
@@ -24,33 +26,112 @@ function getNextStatus(current: BookingStatus): BookingStatus | null {
   return BOOKING_STATUS_FLOW[index + 1];
 }
 
+function filterBookings(
+  contact?: string,
+  status?: BookingStatus,
+  artistId?: string,
+  since?: number
+): Booking[] {
+  let filtered = [...bookings];
+
+  if (contact && typeof contact === 'string') {
+    filtered = filtered.filter(b => b.contact === contact);
+  }
+
+  if (status && typeof status === 'string') {
+    filtered = filtered.filter(b => b.status === status);
+  }
+
+  if (artistId && typeof artistId === 'string') {
+    filtered = filtered.filter(b => b.artistId === artistId);
+  }
+
+  if (since && typeof since === 'number') {
+    filtered = filtered.filter(b => {
+      const updatedAt = b.statusUpdatedAt ? new Date(b.statusUpdatedAt).getTime() : new Date(b.createdAt).getTime();
+      return updatedAt > since;
+    });
+  }
+
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return filtered;
+}
+
 router.get('/', (req: Request, res: Response) => {
   try {
-    const { contact, status, artistId } = req.query;
-    let filtered = [...bookings];
-
-    if (contact && typeof contact === 'string') {
-      filtered = filtered.filter(b => b.contact === contact);
-    }
-
-    if (status && typeof status === 'string') {
-      filtered = filtered.filter(b => b.status === status);
-    }
-
-    if (artistId && typeof artistId === 'string') {
-      filtered = filtered.filter(b => b.artistId === artistId);
-    }
-
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const { contact, status, artistId, since } = req.query;
+    const filtered = filterBookings(
+      contact as string,
+      status as BookingStatus,
+      artistId as string,
+      since ? Number(since) : undefined
+    );
 
     res.json({
       success: true,
-      data: filtered
+      data: filtered,
+      timestamp: lastBookingUpdate
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: '获取预约列表失败'
+    });
+  }
+});
+
+router.get('/updates', async (req: Request, res: Response) => {
+  try {
+    const { contact, artistId, since } = req.query;
+    const sinceTime = since ? Number(since) : 0;
+    const contactStr = contact as string | undefined;
+    const artistIdStr = artistId as string | undefined;
+
+    if (lastBookingUpdate > sinceTime) {
+      const filtered = filterBookings(contactStr, undefined, artistIdStr, sinceTime);
+      return res.json({
+        success: true,
+        data: filtered,
+        timestamp: lastBookingUpdate,
+        hasUpdates: filtered.length > 0
+      });
+    }
+
+    let elapsed = 0;
+    const checkInterval = setInterval(() => {
+      elapsed += POLL_INTERVAL;
+
+      if (lastBookingUpdate > sinceTime) {
+        clearInterval(checkInterval);
+        const filtered = filterBookings(contactStr, undefined, artistIdStr, sinceTime);
+        res.json({
+          success: true,
+          data: filtered,
+          timestamp: lastBookingUpdate,
+          hasUpdates: filtered.length > 0
+        });
+        return;
+      }
+
+      if (elapsed >= LONG_POLL_TIMEOUT) {
+        clearInterval(checkInterval);
+        res.json({
+          success: true,
+          data: [],
+          timestamp: lastBookingUpdate,
+          hasUpdates: false
+        });
+      }
+    }, POLL_INTERVAL);
+
+    req.on('close', () => {
+      clearInterval(checkInterval);
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '监听更新失败'
     });
   }
 });
@@ -108,6 +189,7 @@ router.patch('/:id/status', (req: Request, res: Response) => {
       }
       booking.status = status as BookingStatus;
       booking.statusUpdatedAt = new Date().toISOString();
+      touchBookingUpdate();
     }
 
     if (reviewId !== undefined) {
@@ -155,6 +237,7 @@ router.post('/', (req: Request, res: Response) => {
     };
 
     bookings.push(booking);
+    touchBookingUpdate();
 
     res.status(201).json({
       success: true,

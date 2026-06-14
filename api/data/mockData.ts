@@ -149,3 +149,8 @@ export const artists: Artist[] = generateArtists();
 export let favorites: string[] = [];
 
 export let bookings: Booking[] = [];
+export let lastBookingUpdate = Date.now();
+
+export function touchBookingUpdate() {
+  lastBookingUpdate = Date.now();
+}

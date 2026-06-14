@@ -93,19 +93,41 @@ export async function submitReview(data: { artistId: string; bookingId: string; 
   };
 }
 
-export async function getBookings(contact?: string, status?: BookingStatus, artistId?: string): Promise<Booking[]> {
+export async function getBookings(contact?: string, status?: BookingStatus, artistId?: string, since?: number): Promise<{ data: Booking[]; timestamp: number }> {
   const params = new URLSearchParams();
   if (contact) params.set('contact', contact);
   if (status) params.set('status', status);
   if (artistId) params.set('artistId', artistId);
+  if (since !== undefined) params.set('since', String(since));
   const queryStr = params.toString();
-  const res = await request<Booking[]>(`/bookings${queryStr ? `?${queryStr}` : ''}`);
-  return res.success && res.data ? res.data : [];
+  const res = await request<Booking[] & { timestamp: number }>(`/bookings${queryStr ? `?${queryStr}` : ''}`);
+  return {
+    data: res.success && res.data ? (res.data as any).data || res.data : [],
+    timestamp: (res.data as any)?.timestamp || Date.now()
+  };
 }
 
 export async function getBooking(id: string): Promise<Booking | null> {
   const res = await request<Booking>(`/bookings/${id}`);
   return res.success && res.data ? res.data : null;
+}
+
+export async function listenBookingUpdates(
+  since: number,
+  contact?: string,
+  artistId?: string
+): Promise<{ data: Booking[]; timestamp: number; hasUpdates: boolean }> {
+  const params = new URLSearchParams();
+  params.set('since', String(since));
+  if (contact) params.set('contact', contact);
+  if (artistId) params.set('artistId', artistId);
+  const queryStr = params.toString();
+  const res = await request<any>(`/bookings/updates?${queryStr}`);
+  return {
+    data: res.success && res.data ? res.data.data || [] : [],
+    timestamp: res.data?.timestamp || Date.now(),
+    hasUpdates: res.data?.hasUpdates || false
+  };
 }
 
 export async function updateBookingStatus(bookingId: string, status?: BookingStatus, reviewId?: string): Promise<{ success: boolean; message?: string; booking?: Booking }> {

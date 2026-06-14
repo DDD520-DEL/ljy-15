@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, CheckCircle, XCircle, Clock, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle, Clock, Loader2, RefreshCw, Bell, CheckCircle2 } from 'lucide-react';
 import type { Booking, Artist, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_FLOW } from '../../shared/types';
-import { getBookings, updateBookingStatus, getArtists } from '../lib/api';
+import { updateBookingStatus, getArtists } from '../lib/api';
+import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { Navbar } from '../components/Navbar';
 import { BookingStatusBadge } from '../components/BookingStatusBadge';
 import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
@@ -11,6 +12,11 @@ import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatTime(timestamp: number) {
+  const d = new Date(timestamp);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 }
 
 function getNextStatus(current: BookingStatus): BookingStatus | null {
@@ -28,26 +34,21 @@ function canCancel(status: BookingStatus): boolean {
 export function ArtistDashboard() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<BookingStatus | 'all'>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { bookings, loading, hasUpdates, lastUpdated, refresh, dismissUpdates } = useRealtimeBookings({
+    artistId: selectedArtist?.id,
+    status: filterStatus === 'all' ? undefined : filterStatus,
+    enabled: !!selectedArtist,
+    pollInterval: 2000,
+  });
 
   const fetchArtists = async () => {
     const data = await getArtists();
     setArtists(data);
-  };
-
-  const fetchBookings = async () => {
-    if (!selectedArtist) return;
-    setLoading(true);
-    const data = await getBookings(
-      undefined,
-      filterStatus === 'all' ? undefined : filterStatus,
-      selectedArtist.id
-    );
-    setBookings(data);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -55,18 +56,41 @@ export function ArtistDashboard() {
   }, []);
 
   useEffect(() => {
-    if (selectedArtist) {
-      fetchBookings();
+    if (hasUpdates && bookings.length > 0) {
+      const updatedBookingIds = bookings
+        .filter(b => b.statusUpdatedAt)
+        .sort((a, b) => {
+          const aTime = new Date(b.statusUpdatedAt || b.createdAt).getTime();
+          const bTime = new Date(a.statusUpdatedAt || a.createdAt).getTime();
+          return aTime - bTime;
+        });
+
+      if (updatedBookingIds.length > 0) {
+        const latestId = updatedBookingIds[0].id;
+        setHighlightedBookingId(latestId);
+
+        if (highlightTimeoutRef.current) {
+          clearTimeout(highlightTimeoutRef.current);
+        }
+        highlightTimeoutRef.current = setTimeout(() => {
+          setHighlightedBookingId(null);
+          dismissUpdates();
+        }, 3000);
+      }
     }
-  }, [selectedArtist, filterStatus]);
+
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, [hasUpdates, bookings, dismissUpdates]);
 
   const handleStatusUpdate = async (bookingId: string, newStatus: BookingStatus) => {
     setUpdatingId(bookingId);
     const result = await updateBookingStatus(bookingId, newStatus);
     if (result.success) {
-      setBookings(prev =>
-        prev.map(b => (b.id === bookingId && result.booking ? result.booking : b))
-      );
+      refresh();
     }
     setUpdatingId(null);
   };
@@ -141,7 +165,7 @@ export function ArtistDashboard() {
       <Navbar />
 
       <div className="container py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSelectedArtist(null)}
@@ -156,14 +180,40 @@ export function ArtistDashboard() {
               </p>
             </div>
           </div>
-          <button
-            onClick={fetchBookings}
-            className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm justify-end">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-gray-400">实时更新中</span>
+              </div>
+              <p className="text-gray-600 text-xs mt-1">
+                最后更新：{formatTime(lastUpdated)}
+              </p>
+            </div>
+            <button
+              onClick={refresh}
+              className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              刷新
+            </button>
+          </div>
         </div>
+
+        {hasUpdates && (
+          <div className="mb-6 p-4 bg-blood/20 border border-blood/30 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bell className="w-5 h-5 text-blood animate-bounce" />
+              <span className="text-white">有新的预约或状态更新</span>
+            </div>
+            <button
+              onClick={dismissUpdates}
+              className="text-gray-400 text-sm hover:text-white transition-colors"
+            >
+              知道了
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="bg-graphite border border-white/5 p-4">
@@ -216,6 +266,13 @@ export function ArtistDashboard() {
           <div className="text-center py-20 bg-graphite border border-white/5">
             <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400">暂无预约订单</p>
+            <button
+              onClick={refresh}
+              className="mt-4 px-4 py-2 text-blood hover:text-blood-light text-sm flex items-center gap-2 mx-auto"
+            >
+              <RefreshCw className="w-4 h-4" />
+              刷新
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
@@ -223,12 +280,23 @@ export function ArtistDashboard() {
               const nextStatus = getNextStatus(booking.status);
               const canCancelBooking = canCancel(booking.status);
               const isUpdating = updatingId === booking.id;
+              const isHighlighted = highlightedBookingId === booking.id;
 
               return (
                 <div
                   key={booking.id}
-                  className="bg-graphite border border-white/5 p-5 md:p-6"
+                  className={`bg-graphite border p-5 md:p-6 transition-all duration-500 ${
+                    isHighlighted
+                      ? 'border-blood/50 shadow-lg shadow-blood/20'
+                      : 'border-white/5'
+                  }`}
                 >
+                  {isHighlighted && (
+                    <div className="flex items-center gap-2 mb-3 text-blood text-sm">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>状态已更新</span>
+                    </div>
+                  )}
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
