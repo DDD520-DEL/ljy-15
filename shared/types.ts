@@ -1,3 +1,14 @@
+export const TIME_SLOTS = [
+  '10:00-12:00',
+  '12:00-14:00',
+  '14:00-16:00',
+  '16:00-18:00',
+  '18:00-20:00',
+  '20:00-22:00',
+] as const;
+
+export type TimeSlot = typeof TIME_SLOTS[number];
+
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
@@ -58,6 +69,8 @@ export interface BookingRequest {
   budgetMax: number;
   contact: string;
   note?: string;
+  bookingDate: string;
+  timeSlot: TimeSlot;
 }
 
 export interface Booking {
@@ -73,6 +86,8 @@ export interface Booking {
   reviewId?: string;
   createdAt: string;
   statusUpdatedAt?: string;
+  bookingDate: string;
+  timeSlot: TimeSlot;
 }
 
 export interface Review {

@@ -1,4 +1,5 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot } from '../../shared/types';
+import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
 
@@ -62,6 +63,22 @@ export async function addFavorite(artistId: string): Promise<boolean> {
 export async function removeFavorite(artistId: string): Promise<boolean> {
   const res = await request(`/favorites/${artistId}`, { method: 'DELETE' });
   return res.success;
+}
+
+export async function getAvailableSlots(artistId: string, date: string): Promise<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: readonly TimeSlot[] }> {
+  const res = await request<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: TimeSlot[] }>(`/bookings/occupied-slots?artistId=${encodeURIComponent(artistId)}&date=${encodeURIComponent(date)}`);
+  if (res.success && res.data) {
+    return {
+      occupiedSlots: res.data.occupiedSlots,
+      availableSlots: res.data.availableSlots,
+      allSlots: TIME_SLOTS,
+    };
+  }
+  return {
+    occupiedSlots: [],
+    availableSlots: TIME_SLOTS as unknown as TimeSlot[],
+    allSlots: TIME_SLOTS,
+  };
 }
 
 export async function submitBooking(data: BookingRequest): Promise<{ success: boolean; message?: string; booking?: Booking }> {

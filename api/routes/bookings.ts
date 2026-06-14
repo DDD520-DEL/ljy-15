@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification } from '../data/mockData';
-import type { BookingRequest, Booking, BookingStatus } from '../../shared/types';
-import { BOOKING_STATUS_FLOW } from '../../shared/types';
+import type { BookingRequest, Booking, BookingStatus, TimeSlot } from '../../shared/types';
+import { BOOKING_STATUS_FLOW, TIME_SLOTS } from '../../shared/types';
 
 const router = Router();
 
@@ -136,6 +136,54 @@ router.get('/updates', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/occupied-slots', (req: Request, res: Response) => {
+  try {
+    const { artistId, date } = req.query;
+
+    if (!artistId || !date) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供艺术家ID和日期'
+      });
+    }
+
+    const artist = artists.find(a => a.id === artistId);
+    if (!artist) {
+      return res.status(404).json({
+        success: false,
+        message: '纹身师不存在'
+      });
+    }
+
+    const dateStr = date as string;
+    const occupiedSlots = bookings
+      .filter(b => 
+        b.artistId === artistId && 
+        b.bookingDate === dateStr && 
+        b.status !== 'cancelled'
+      )
+      .map(b => b.timeSlot);
+
+    const availableSlots = TIME_SLOTS.filter(slot => 
+      !occupiedSlots.includes(slot as TimeSlot)
+    );
+
+    res.json({
+      success: true,
+      data: {
+        occupiedSlots,
+        availableSlots,
+        allSlots: TIME_SLOTS,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '查询可用时段失败'
+    });
+  }
+});
+
 router.get('/:id', (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -152,7 +200,7 @@ router.get('/:id', (req: Request, res: Response) => {
       success: true,
       data: booking
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '获取预约详情失败'
@@ -208,7 +256,7 @@ router.patch('/:id/status', (req: Request, res: Response) => {
       data: booking,
       message: '更新成功'
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '更新失败'
@@ -220,10 +268,17 @@ router.post('/', (req: Request, res: Response) => {
   try {
     const body = req.body as BookingRequest;
 
-    if (!body.artistId || !body.style || !body.size || !body.contact) {
+    if (!body.artistId || !body.style || !body.size || !body.contact || !body.bookingDate || !body.timeSlot) {
       return res.status(400).json({
         success: false,
-        message: '请填写完整的预约信息'
+        message: '请填写完整的预约信息，包括日期和时间段'
+      });
+    }
+
+    if (!TIME_SLOTS.includes(body.timeSlot as TimeSlot)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的时间段'
       });
     }
 
@@ -232,6 +287,20 @@ router.post('/', (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         message: '纹身师不存在'
+      });
+    }
+
+    const existingBooking = bookings.find(b => 
+      b.artistId === body.artistId && 
+      b.bookingDate === body.bookingDate && 
+      b.timeSlot === body.timeSlot &&
+      b.status !== 'cancelled'
+    );
+
+    if (existingBooking) {
+      return res.status(409).json({
+        success: false,
+        message: '该时段已被预约，请选择其他时段'
       });
     }
 

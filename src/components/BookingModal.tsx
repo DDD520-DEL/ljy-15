@@ -1,12 +1,23 @@
-import { useState } from 'react';
-import { X, Send, CheckCircle } from 'lucide-react';
-import type { Artist } from '../../shared/types';
-import { submitBooking } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { X, Send, CheckCircle, Calendar, Clock, Loader2 } from 'lucide-react';
+import type { Artist, TimeSlot } from '../../shared/types';
+import { submitBooking, getAvailableSlots } from '../lib/api';
 
 interface Props {
   open: boolean;
   artist: Artist | null;
   onClose: () => void;
+}
+
+function getMinDate(): string {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+function getMaxDate(): string {
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 30);
+  return maxDate.toISOString().split('T')[0];
 }
 
 export function BookingModal({ open, artist, onClose }: Props) {
@@ -16,9 +27,14 @@ export function BookingModal({ open, artist, onClose }: Props) {
   const [budgetMax, setBudgetMax] = useState('');
   const [contact, setContact] = useState('');
   const [note, setNote] = useState('');
+  const [bookingDate, setBookingDate] = useState('');
+  const [timeSlot, setTimeSlot] = useState<TimeSlot | ''>('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [occupiedSlots, setOccupiedSlots] = useState<TimeSlot[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
 
   const resetForm = () => {
     setStyle('');
@@ -27,9 +43,13 @@ export function BookingModal({ open, artist, onClose }: Props) {
     setBudgetMax('');
     setContact('');
     setNote('');
+    setBookingDate('');
+    setTimeSlot('');
     setSubmitting(false);
     setSubmitted(false);
     setErrorMsg('');
+    setOccupiedSlots([]);
+    setAvailableSlots([]);
   };
 
   const handleClose = () => {
@@ -37,12 +57,46 @@ export function BookingModal({ open, artist, onClose }: Props) {
     onClose();
   };
 
+  useEffect(() => {
+    async function fetchAvailableSlots() {
+      if (!artist || !bookingDate) {
+        setAvailableSlots([]);
+        setOccupiedSlots([]);
+        setTimeSlot('');
+        return;
+      }
+
+      setLoadingSlots(true);
+      try {
+        const result = await getAvailableSlots(artist.id, bookingDate);
+        setOccupiedSlots(result.occupiedSlots);
+        setAvailableSlots(result.availableSlots);
+        if (timeSlot && !result.availableSlots.includes(timeSlot)) {
+          setTimeSlot('');
+        }
+      } catch {
+        setOccupiedSlots([]);
+        setAvailableSlots([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+
+    fetchAvailableSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artist, bookingDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artist) return;
 
-    if (!style || !size || !contact) {
-      setErrorMsg('请填写必填项');
+    if (!style || !size || !contact || !bookingDate || !timeSlot) {
+      setErrorMsg('请填写必填项，包括日期和时间段');
+      return;
+    }
+
+    if (occupiedSlots.includes(timeSlot)) {
+      setErrorMsg('该时段已被预约，请选择其他时段');
       return;
     }
 
@@ -57,6 +111,8 @@ export function BookingModal({ open, artist, onClose }: Props) {
       budgetMax: budgetMax ? Number(budgetMax) : 0,
       contact,
       note: note || undefined,
+      bookingDate,
+      timeSlot,
     });
 
     setSubmitting(false);
@@ -80,10 +136,10 @@ export function BookingModal({ open, artist, onClose }: Props) {
         onClick={handleClose}
       />
 
-      <div className="relative w-full max-w-lg bg-ink-200 border border-white/10 animate-slide-up overflow-hidden">
+      <div className="relative w-full max-w-lg bg-ink-200 border border-white/10 animate-slide-up overflow-hidden max-h-[90vh] flex flex-col">
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blood via-gold to-blood" />
 
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
+        <div className="flex items-center justify-between p-5 border-b border-white/5 flex-shrink-0">
           <div>
             <h2 className="font-display text-xl text-white">预约咨询</h2>
             <p className="text-gray-500 text-sm mt-0.5">
@@ -99,7 +155,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
         </div>
 
         {submitted ? (
-          <div className="p-10 text-center">
+          <div className="p-10 text-center flex-shrink-0">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-white text-lg font-medium mb-2">预约意向已提交</h3>
             <p className="text-gray-400 text-sm">
@@ -107,7 +163,69 @@ export function BookingModal({ open, artist, onClose }: Props) {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-5 space-y-5">
+          <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto flex-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-300 text-sm mb-1.5 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-blood" />
+                  预约日期 <span className="text-blood">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                  min={getMinDate()}
+                  max={getMaxDate()}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm mb-1.5 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-blood" />
+                  时间段 <span className="text-blood">*</span>
+                </label>
+                <select
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}
+                  className="input-field"
+                  disabled={!bookingDate || loadingSlots}
+                >
+                  <option value="">
+                    {!bookingDate ? '请先选择日期' : loadingSlots ? '加载中...' : '请选择时段'}
+                  </option>
+                  {availableSlots.map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {bookingDate && (
+              <div className="bg-ink-300/50 border border-white/5 rounded-lg p-3">
+                <p className="text-gray-400 text-xs mb-2">
+                  {loadingSlots ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      正在查询可用时段...
+                    </span>
+                  ) : availableSlots.length > 0 ? (
+                    <span className="text-green-400">
+                      当日还有 {availableSlots.length} 个时段可预约
+                    </span>
+                  ) : (
+                    <span className="text-blood">
+                      当日所有时段均已约满，请选择其他日期
+                    </span>
+                  )}
+                </p>
+                {!loadingSlots && occupiedSlots.length > 0 && (
+                  <p className="text-gray-500 text-xs">
+                    已占用时段：{occupiedSlots.join('、')}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-gray-300 text-sm mb-1.5">
                 意向风格 <span className="text-blood">*</span>
@@ -191,7 +309,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleClose}

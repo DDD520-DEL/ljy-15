@@ -1,5 +1,5 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus } from '../../shared/types';
-import { BOOKING_STATUS_LABELS } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot } from '../../shared/types';
+import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
   { id: 'old-school', name: 'Old School', nameEn: 'Old School', popularity: 95 },
@@ -149,7 +149,39 @@ export const allReviews: Review[] = [];
 export const artists: Artist[] = generateArtists();
 export let favorites: string[] = [];
 
-export let bookings: Booking[] = [];
+function generateTestBookings(): Booking[] {
+  const testBookings: Booking[] = [];
+  const statuses: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed'];
+  const today = new Date();
+  
+  for (let i = 0; i < 20; i++) {
+    const artistIndex = i % 5;
+    const daysAhead = Math.floor(i / 4);
+    const slotIndex = i % TIME_SLOTS.length;
+    const bookingDate = new Date(today);
+    bookingDate.setDate(today.getDate() + daysAhead);
+    
+    testBookings.push({
+      id: `booking-test-${i}`,
+      artistId: `artist-${artistIndex + 1}`,
+      style: styles[i % styles.length].name,
+      size: `${10 + i * 2}x${15 + i * 2}cm`,
+      budgetMin: 500 + i * 100,
+      budgetMax: 1000 + i * 100,
+      contact: `138${String(10000000 + i).slice(-8)}`,
+      note: i % 3 === 0 ? '需要设计参考图案' : undefined,
+      status: statuses[i % statuses.length],
+      createdAt: new Date(today.getTime() - i * 24 * 60 * 60 * 1000).toISOString(),
+      statusUpdatedAt: new Date(today.getTime() - i * 12 * 60 * 60 * 1000).toISOString(),
+      bookingDate: bookingDate.toISOString().split('T')[0],
+      timeSlot: TIME_SLOTS[slotIndex] as TimeSlot,
+    });
+  }
+  
+  return testBookings;
+}
+
+export let bookings: Booking[] = generateTestBookings();
 export let lastBookingUpdate = Date.now();
 
 export function touchBookingUpdate() {
