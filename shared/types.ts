@@ -283,3 +283,58 @@ export interface BrowseHistoryItem {
   artist: Artist;
   browsedAt: string;
 }
+
+export type FeedbackStatus = 'pending' | 'processing' | 'replied' | 'closed';
+
+export const FEEDBACK_STATUS_LABELS: Record<FeedbackStatus, string> = {
+  pending: '待处理',
+  processing: '处理中',
+  replied: '已回复',
+  closed: '已关闭',
+};
+
+export const FEEDBACK_STATUS_COLORS: Record<FeedbackStatus, string> = {
+  pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  processing: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  replied: 'bg-green-500/20 text-green-400 border-green-500/30',
+  closed: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+};
+
+export type FeedbackCategory = 'bug' | 'feature' | 'suggestion' | 'complaint' | 'other';
+
+export const FEEDBACK_CATEGORY_LABELS: Record<FeedbackCategory, string> = {
+  bug: '问题反馈',
+  feature: '功能需求',
+  suggestion: '优化建议',
+  complaint: '投诉建议',
+  other: '其他',
+};
+
+export interface FeedbackImage {
+  id: string;
+  url: string;
+}
+
+export interface Feedback {
+  id: string;
+  userId: string;
+  category: FeedbackCategory;
+  title: string;
+  description: string;
+  images: FeedbackImage[];
+  contact?: string;
+  status: FeedbackStatus;
+  reply?: string;
+  repliedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackSubmitRequest {
+  category: FeedbackCategory;
+  title: string;
+  description: string;
+  images?: { url: string }[];
+  contact?: string;
+  userId?: string;
+}

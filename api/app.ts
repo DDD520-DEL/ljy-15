@@ -22,6 +22,7 @@ import recommendationsRoutes from './routes/recommendations'
 import userRoutes from './routes/user'
 import applicationsRoutes from './routes/applications'
 import couponsRoutes from './routes/coupons'
+import feedbacksRoutes from './routes/feedbacks'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -50,6 +51,7 @@ app.use('/api/recommendations', recommendationsRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/applications', applicationsRoutes)
 app.use('/api/coupons', couponsRoutes)
+app.use('/api/feedbacks', feedbacksRoutes)
 
 /**
  * health

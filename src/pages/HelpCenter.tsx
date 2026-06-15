@@ -369,10 +369,10 @@ export function HelpCenter() {
                 <MessageCircle className="w-5 h-5" />
                 在线客服
               </button>
-              <button className="btn-outline flex items-center gap-2">
-                <HelpCircle className="w-5 h-5" />
+              <Link to="/feedback" className="btn-outline flex items-center gap-2">
+                <MessageCircle className="w-5 h-5" />
                 提交反馈
-              </button>
+              </Link>
             </div>
           </div>
         </div>

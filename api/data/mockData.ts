@@ -1,4 +1,4 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
@@ -599,4 +599,102 @@ export function deleteCoupon(id: string): boolean {
   if (index === -1) return false;
   coupons.splice(index, 1);
   return true;
+}
+
+export const feedbacks: Feedback[] = [
+  {
+    id: 'feedback-1',
+    userId: 'user-1',
+    category: 'suggestion',
+    title: '希望增加更多风格筛选',
+    description: '目前的风格分类有点少，希望能增加更多细分风格，比如卡通、插画等风格的分类，这样找起来会更方便。',
+    images: [],
+    contact: '13800138000',
+    status: 'replied',
+    reply: '感谢您的建议！我们已经在规划中，预计下个版本会增加更多风格分类，敬请期待。',
+    repliedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'feedback-2',
+    userId: 'user-1',
+    category: 'bug',
+    title: '预约时间选择有问题',
+    description: '在选择预约时间时，有时候会出现日期选择器闪退的情况，尤其是在快速切换月份的时候更容易出现。',
+    images: [
+      {
+        id: 'img-1',
+        url: 'https://picsum.photos/seed/feedback-screenshot-1/600/400',
+      },
+    ],
+    contact: '13800138000',
+    status: 'processing',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export let lastFeedbackUpdate = Date.now();
+
+export function touchFeedbackUpdate() {
+  lastFeedbackUpdate = Date.now();
+}
+
+export function createFeedback(data: FeedbackSubmitRequest): Feedback {
+  const now = new Date().toISOString();
+  const feedback: Feedback = {
+    id: `feedback-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    userId: data.userId || 'anonymous',
+    category: data.category,
+    title: data.title,
+    description: data.description,
+    images: (data.images || []).map((img, index) => ({
+      id: `img-${Date.now()}-${index}`,
+      url: img.url,
+    })),
+    contact: data.contact,
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now,
+  };
+  feedbacks.unshift(feedback);
+  touchFeedbackUpdate();
+  return feedback;
+}
+
+export function getFeedbackById(id: string): Feedback | undefined {
+  return feedbacks.find(f => f.id === id);
+}
+
+export function getFeedbacksByUserId(userId: string, status?: FeedbackStatus): Feedback[] {
+  let filtered = feedbacks.filter(f => f.userId === userId);
+  if (status) {
+    filtered = filtered.filter(f => f.status === status);
+  }
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function getAllFeedbacks(status?: FeedbackStatus, category?: FeedbackCategory): Feedback[] {
+  let filtered = [...feedbacks];
+  if (status) {
+    filtered = filtered.filter(f => f.status === status);
+  }
+  if (category) {
+    filtered = filtered.filter(f => f.category === category);
+  }
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function updateFeedbackStatus(id: string, status: FeedbackStatus, reply?: string): Feedback | null {
+  const feedback = getFeedbackById(id);
+  if (!feedback) return null;
+  feedback.status = status;
+  feedback.updatedAt = new Date().toISOString();
+  if (reply) {
+    feedback.reply = reply;
+    feedback.repliedAt = new Date().toISOString();
+  }
+  touchFeedbackUpdate();
+  return feedback;
 }

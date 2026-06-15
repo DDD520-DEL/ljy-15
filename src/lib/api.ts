@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -475,5 +475,75 @@ export async function deleteCoupon(id: string): Promise<{ success: boolean; mess
   return {
     success: res.success,
     message: res.message,
+  };
+}
+
+export async function submitFeedback(data: FeedbackSubmitRequest): Promise<{ success: boolean; message?: string; feedback?: Feedback }> {
+  const res = await request<Feedback>('/feedbacks', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    feedback: res.data,
+  };
+}
+
+interface FeedbacksResponse {
+  data: Feedback[];
+  timestamp: number;
+}
+
+function isFeedbacksResponse(data: unknown): data is FeedbacksResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'data' in data &&
+    Array.isArray((data as FeedbacksResponse).data)
+  );
+}
+
+export async function getFeedbacks(userId?: string, status?: FeedbackStatus): Promise<{ data: Feedback[]; timestamp: number }> {
+  const params = new URLSearchParams();
+  if (userId) params.set('userId', userId);
+  if (status) params.set('status', status);
+  const queryStr = params.toString();
+  const res = await request<FeedbacksResponse>(`/feedbacks${queryStr ? `?${queryStr}` : ''}`);
+
+  let feedbacks: Feedback[] = [];
+  let timestamp = Date.now();
+
+  if (res.success && res.data) {
+    if (isFeedbacksResponse(res.data)) {
+      feedbacks = res.data.data;
+      timestamp = res.data.timestamp;
+    } else if (Array.isArray(res.data)) {
+      feedbacks = res.data;
+    }
+  }
+
+  return { data: feedbacks, timestamp };
+}
+
+export async function getFeedback(id: string): Promise<Feedback | null> {
+  const res = await request<Feedback>(`/feedbacks/${id}`);
+  return res.success && res.data ? res.data : null;
+}
+
+export async function getFeedbackCategories(): Promise<{ value: FeedbackCategory; label: string }[]> {
+  const res = await request<{ value: FeedbackCategory; label: string }[]>('/feedbacks/categories/list');
+  return res.success && res.data ? res.data : [];
+}
+
+export async function updateFeedbackStatus(id: string, status: FeedbackStatus, reply?: string): Promise<{ success: boolean; message?: string; feedback?: Feedback }> {
+  const res = await request<Feedback>(`/feedbacks/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reply }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    feedback: res.data,
   };
 }

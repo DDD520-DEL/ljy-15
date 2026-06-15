@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, Heart, Calendar, Palette, Bell, User, HelpCircle, UserPlus, History } from 'lucide-react';
+import { Droplet, Heart, Calendar, Palette, Bell, User, HelpCircle, UserPlus, History, MessageSquare } from 'lucide-react';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 export function Navbar() {
@@ -89,6 +89,15 @@ export function Navbar() {
               <HelpCircle className="w-4 h-4" />
               帮助中心
             </Link>
+            <Link
+              to="/feedback"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/feedback' || location.pathname === '/my-feedbacks' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              意见反馈
+            </Link>
           </div>
 
           <div className="flex items-center gap-1">
@@ -156,6 +165,13 @@ export function Navbar() {
               title="帮助中心"
             >
               <HelpCircle className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/feedback"
+              className="p-2 text-gray-400 hover:text-blood transition-colors"
+              title="意见反馈"
+            >
+              <MessageSquare className="w-5 h-5" />
             </Link>
           </div>
         </div>
