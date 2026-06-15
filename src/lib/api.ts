@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -379,5 +379,82 @@ export async function updateApplicationStatus(id: string, status: ApplicationSta
     success: res.success,
     message: res.message,
     application: res.data,
+  };
+}
+
+export async function getCoupons(enabled?: boolean, type?: CouponType): Promise<Coupon[]> {
+  const params = new URLSearchParams();
+  if (enabled !== undefined) params.set('enabled', String(enabled));
+  if (type) params.set('type', type);
+  const queryStr = params.toString();
+  const res = await request<Coupon[]>(`/coupons${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function getAvailableCoupons(): Promise<Coupon[]> {
+  const res = await request<Coupon[]>('/coupons/available');
+  return res.success && res.data ? res.data : [];
+}
+
+export async function getUserCoupons(userId: string): Promise<(UserCoupon & { coupon: Coupon })[]> {
+  const res = await request<(UserCoupon & { coupon: Coupon })[]>(`/coupons/user/${encodeURIComponent(userId)}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function claimCoupon(couponId: string, userId: string): Promise<{ success: boolean; message?: string; userCoupon?: UserCoupon }> {
+  const res = await request<UserCoupon>('/coupons/claim', {
+    method: 'POST',
+    body: JSON.stringify({ couponId, userId }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    userCoupon: res.data,
+  };
+}
+
+export async function calculateCouponDiscount(couponId: string, amount: number): Promise<{ success: boolean; data?: { originalAmount: number; discount: number; finalAmount: number; coupon: Pick<Coupon, 'id' | 'name' | 'type' | 'threshold' | 'value'> }; message?: string }> {
+  const res = await request<{ originalAmount: number; discount: number; finalAmount: number; coupon: Pick<Coupon, 'id' | 'name' | 'type' | 'threshold' | 'value'> }>('/coupons/calculate', {
+    method: 'POST',
+    body: JSON.stringify({ couponId, amount }),
+  });
+  return {
+    success: res.success,
+    data: res.data,
+    message: res.message,
+  };
+}
+
+export async function createCoupon(data: Omit<Coupon, 'id' | 'usedCount' | 'createdAt'>): Promise<{ success: boolean; message?: string; coupon?: Coupon }> {
+  const res = await request<Coupon>('/coupons', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    coupon: res.data,
+  };
+}
+
+export async function updateCoupon(id: string, data: Partial<Omit<Coupon, 'id' | 'createdAt'>>): Promise<{ success: boolean; message?: string; coupon?: Coupon }> {
+  const res = await request<Coupon>(`/coupons/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    coupon: res.data,
+  };
+}
+
+export async function deleteCoupon(id: string): Promise<{ success: boolean; message?: string }> {
+  const res = await request(`/coupons/${id}`, {
+    method: 'DELETE',
+  });
+  return {
+    success: res.success,
+    message: res.message,
   };
 }

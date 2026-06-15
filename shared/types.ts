@@ -113,6 +113,7 @@ export interface BookingRequest {
   note?: string;
   bookingDate: string;
   timeSlot: TimeSlot;
+  couponId?: string;
 }
 
 export interface Booking {
@@ -131,6 +132,8 @@ export interface Booking {
   bookingDate: string;
   timeSlot: TimeSlot;
   cancellation?: BookingCancellation;
+  couponId?: string;
+  discountAmount?: number;
 }
 
 export interface Review {
@@ -214,6 +217,38 @@ export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
   approved: 'bg-green-500/20 text-green-400 border-green-500/30',
   rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
+
+export type CouponType = 'full_reduction' | 'discount';
+
+export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
+  full_reduction: '满减券',
+  discount: '折扣券',
+};
+
+export interface Coupon {
+  id: string;
+  name: string;
+  type: CouponType;
+  threshold: number;
+  value: number;
+  totalCount: number;
+  usedCount: number;
+  perUserLimit: number;
+  startDate: string;
+  endDate: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export interface UserCoupon {
+  id: string;
+  couponId: string;
+  userId: string;
+  used: boolean;
+  usedAt?: string;
+  bookingId?: string;
+  claimedAt: string;
+}
 
 export interface ArtistApplicationRequest {
   name: string;

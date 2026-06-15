@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { X, Send, CheckCircle, Calendar, Clock, Loader2 } from 'lucide-react';
-import type { Artist, TimeSlot } from '../../shared/types';
-import { submitBooking, getAvailableSlots } from '../lib/api';
+import { useState, useEffect, useMemo } from 'react';
+import { X, Send, CheckCircle, Calendar, Clock, Loader2, Ticket } from 'lucide-react';
+import type { Artist, TimeSlot, Coupon } from '../../shared/types';
+import { submitBooking, getAvailableSlots, getAvailableCoupons } from '../lib/api';
 
 interface Props {
   open: boolean;
@@ -20,6 +20,25 @@ function getMaxDate(): string {
   return maxDate.toISOString().split('T')[0];
 }
 
+function formatCouponLabel(coupon: Coupon): string {
+  if (coupon.type === 'full_reduction') {
+    return `满${coupon.threshold}减${coupon.value}`;
+  }
+  return `${coupon.value}折${coupon.threshold > 0 ? `（满${coupon.threshold}）` : ''}`;
+}
+
+function calcDiscount(coupon: Coupon, amount: number): number {
+  if (coupon.type === 'full_reduction') {
+    if (amount < coupon.threshold) return 0;
+    return Math.min(coupon.value, amount);
+  }
+  if (coupon.type === 'discount') {
+    if (amount < coupon.threshold) return 0;
+    return Math.round(amount * (1 - coupon.value / 10));
+  }
+  return 0;
+}
+
 export function BookingModal({ open, artist, onClose }: Props) {
   const [style, setStyle] = useState('');
   const [size, setSize] = useState('');
@@ -35,6 +54,10 @@ export function BookingModal({ open, artist, onClose }: Props) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [occupiedSlots, setOccupiedSlots] = useState<TimeSlot[]>([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<string>('');
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [showCouponList, setShowCouponList] = useState(false);
 
   const resetForm = () => {
     setStyle('');
@@ -50,6 +73,9 @@ export function BookingModal({ open, artist, onClose }: Props) {
     setErrorMsg('');
     setOccupiedSlots([]);
     setAvailableSlots([]);
+    setCoupons([]);
+    setSelectedCouponId('');
+    setShowCouponList(false);
   };
 
   const handleClose = () => {
@@ -86,6 +112,50 @@ export function BookingModal({ open, artist, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artist, bookingDate]);
 
+  useEffect(() => {
+    if (!open) return;
+    async function fetchCoupons() {
+      setLoadingCoupons(true);
+      try {
+        const result = await getAvailableCoupons();
+        setCoupons(result);
+      } catch {
+        setCoupons([]);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    }
+    fetchCoupons();
+  }, [open]);
+
+  const avgBudget = useMemo(() => {
+    const min = budgetMin ? Number(budgetMin) : 0;
+    const max = budgetMax ? Number(budgetMax) : 0;
+    if (min && max) return (min + max) / 2;
+    return min || max || 0;
+  }, [budgetMin, budgetMax]);
+
+  const selectedCoupon = useMemo(() => {
+    if (!selectedCouponId) return null;
+    return coupons.find(c => c.id === selectedCouponId) || null;
+  }, [selectedCouponId, coupons]);
+
+  const discountAmount = useMemo(() => {
+    if (!selectedCoupon || avgBudget <= 0) return 0;
+    return calcDiscount(selectedCoupon, avgBudget);
+  }, [selectedCoupon, avgBudget]);
+
+  const finalAmount = useMemo(() => {
+    return Math.max(0, avgBudget - discountAmount);
+  }, [avgBudget, discountAmount]);
+
+  const eligibleCoupons = useMemo(() => {
+    return coupons.filter(c => {
+      if (avgBudget <= 0) return true;
+      return avgBudget >= c.threshold;
+    });
+  }, [coupons, avgBudget]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artist) return;
@@ -97,6 +167,11 @@ export function BookingModal({ open, artist, onClose }: Props) {
 
     if (occupiedSlots.includes(timeSlot)) {
       setErrorMsg('该时段已被预约，请选择其他时段');
+      return;
+    }
+
+    if (selectedCoupon && avgBudget > 0 && avgBudget < selectedCoupon.threshold) {
+      setErrorMsg(`所选优惠券需满${selectedCoupon.threshold}元才可使用`);
       return;
     }
 
@@ -113,6 +188,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
       note: note || undefined,
       bookingDate,
       timeSlot,
+      couponId: selectedCouponId || undefined,
     });
 
     setSubmitting(false);
@@ -278,6 +354,113 @@ export function BookingModal({ open, artist, onClose }: Props) {
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block text-gray-300 text-sm mb-1.5 flex items-center gap-1.5">
+                <Ticket className="w-4 h-4 text-gold" />
+                优惠券
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowCouponList(!showCouponList)}
+                className="input-field w-full text-left flex items-center justify-between"
+              >
+                <span className={selectedCoupon ? 'text-gold' : 'text-gray-500'}>
+                  {selectedCoupon
+                    ? `已选：${selectedCoupon.name}（${formatCouponLabel(selectedCoupon)}）`
+                    : loadingCoupons
+                      ? '加载优惠券...'
+                      : coupons.length > 0
+                        ? `有 ${eligibleCoupons.length} 张可用优惠券（点击选择）`
+                        : '暂无可用优惠券'
+                  }
+                </span>
+                <span className={`text-gray-500 transition-transform ${showCouponList ? 'rotate-180' : ''}`}>▾</span>
+              </button>
+
+              {showCouponList && coupons.length > 0 && (
+                <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedCouponId(''); setShowCouponList(false); }}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      !selectedCouponId
+                        ? 'border-gold/50 bg-gold/10'
+                        : 'border-white/5 bg-ink-300/50 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="text-gray-400 text-sm">不使用优惠券</span>
+                  </button>
+                  {coupons.map(coupon => {
+                    const eligible = avgBudget <= 0 || avgBudget >= coupon.threshold;
+                    const discount = avgBudget > 0 ? calcDiscount(coupon, avgBudget) : 0;
+                    return (
+                      <button
+                        key={coupon.id}
+                        type="button"
+                        onClick={() => {
+                          if (eligible) {
+                            setSelectedCouponId(selectedCouponId === coupon.id ? '' : coupon.id);
+                            setShowCouponList(false);
+                          }
+                        }}
+                        disabled={!eligible}
+                        className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                          selectedCouponId === coupon.id
+                            ? 'border-gold/50 bg-gold/10'
+                            : eligible
+                              ? 'border-white/5 bg-ink-300/50 hover:border-white/20'
+                              : 'border-white/5 bg-ink-300/30 opacity-50 cursor-not-allowed'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className={`text-sm font-medium ${selectedCouponId === coupon.id ? 'text-gold' : 'text-white'}`}>
+                              {coupon.name}
+                            </span>
+                            <span className="ml-2 text-xs text-gray-500">
+                              {coupon.type === 'full_reduction' ? '满减' : '折扣'}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-sm font-bold ${selectedCouponId === coupon.id ? 'text-gold' : eligible ? 'text-blood' : 'text-gray-600'}`}>
+                              {formatCouponLabel(coupon)}
+                            </span>
+                            {avgBudget > 0 && discount > 0 && (
+                              <p className="text-xs text-green-400">可优惠 ¥{discount}</p>
+                            )}
+                          </div>
+                        </div>
+                        {!eligible && avgBudget > 0 && (
+                          <p className="text-xs text-gray-600 mt-1">需满 ¥{coupon.threshold} 可用</p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {avgBudget > 0 && (
+              <div className="bg-ink-300/50 border border-white/5 rounded-lg p-3 space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">预算金额</span>
+                  <span className="text-white">¥{avgBudget.toFixed(0)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">优惠券减免</span>
+                    <span className="text-green-400">-¥{discountAmount}</span>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm pt-1.5 border-t border-white/10">
+                    <span className="text-gray-300 font-medium">优惠后金额</span>
+                    <span className="text-gold font-bold">¥{finalAmount.toFixed(0)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-gray-300 text-sm mb-1.5">

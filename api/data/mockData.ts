@@ -1,4 +1,4 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
@@ -349,4 +349,181 @@ export function updateApplicationStatus(id: string, status: ApplicationStatus, r
   }
   touchApplicationUpdate();
   return application;
+}
+
+const now = new Date();
+const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+export let coupons: Coupon[] = [
+  {
+    id: 'coupon-1',
+    name: '新客满500减50',
+    type: 'full_reduction',
+    threshold: 500,
+    value: 50,
+    totalCount: 100,
+    usedCount: 0,
+    perUserLimit: 1,
+    startDate: now.toISOString().split('T')[0],
+    endDate: in30Days.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'coupon-2',
+    name: '满1000减120',
+    type: 'full_reduction',
+    threshold: 1000,
+    value: 120,
+    totalCount: 50,
+    usedCount: 0,
+    perUserLimit: 2,
+    startDate: now.toISOString().split('T')[0],
+    endDate: in30Days.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'coupon-3',
+    name: '全场9折券',
+    type: 'discount',
+    threshold: 0,
+    value: 9,
+    totalCount: 200,
+    usedCount: 0,
+    perUserLimit: 1,
+    startDate: now.toISOString().split('T')[0],
+    endDate: in60Days.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'coupon-4',
+    name: '满2000减300',
+    type: 'full_reduction',
+    threshold: 2000,
+    value: 300,
+    totalCount: 30,
+    usedCount: 0,
+    perUserLimit: 1,
+    startDate: now.toISOString().split('T')[0],
+    endDate: in30Days.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'coupon-5',
+    name: '全场8.5折券',
+    type: 'discount',
+    threshold: 500,
+    value: 8.5,
+    totalCount: 100,
+    usedCount: 0,
+    perUserLimit: 1,
+    startDate: now.toISOString().split('T')[0],
+    endDate: in60Days.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: now.toISOString(),
+  },
+];
+
+export let userCoupons: UserCoupon[] = [];
+
+export function getCouponById(id: string): Coupon | undefined {
+  return coupons.find(c => c.id === id);
+}
+
+export function getAvailableCoupons(): Coupon[] {
+  const today = new Date().toISOString().split('T')[0];
+  return coupons.filter(c =>
+    c.enabled &&
+    c.usedCount < c.totalCount &&
+    c.startDate <= today &&
+    c.endDate >= today
+  );
+}
+
+export function getUserAvailableCoupons(userId: string): (UserCoupon & { coupon: Coupon })[] {
+  const available = getAvailableCoupons();
+  return userCoupons
+    .filter(uc => uc.userId === userId && !uc.used)
+    .map(uc => {
+      const coupon = available.find(c => c.id === uc.couponId);
+      if (!coupon) return null;
+      return { ...uc, coupon };
+    })
+    .filter((uc): uc is UserCoupon & { coupon: Coupon } => uc !== null);
+}
+
+export function claimCoupon(couponId: string, userId: string): UserCoupon | null {
+  const coupon = getCouponById(couponId);
+  if (!coupon || !coupon.enabled) return null;
+
+  const today = new Date().toISOString().split('T')[0];
+  if (coupon.startDate > today || coupon.endDate < today) return null;
+  if (coupon.usedCount >= coupon.totalCount) return null;
+
+  const userClaimed = userCoupons.filter(
+    uc => uc.couponId === couponId && uc.userId === userId
+  ).length;
+  if (userClaimed >= coupon.perUserLimit) return null;
+
+  const userCoupon: UserCoupon = {
+    id: `uc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    couponId,
+    userId,
+    used: false,
+    claimedAt: new Date().toISOString(),
+  };
+
+  userCoupons.push(userCoupon);
+  coupon.usedCount += 1;
+  return userCoupon;
+}
+
+export function useUserCoupon(userCouponId: string, bookingId: string): boolean {
+  const uc = userCoupons.find(u => u.id === userCouponId);
+  if (!uc || uc.used) return false;
+  uc.used = true;
+  uc.usedAt = new Date().toISOString();
+  uc.bookingId = bookingId;
+  return true;
+}
+
+export function calculateCouponDiscount(coupon: Coupon, amount: number): number {
+  if (coupon.type === 'full_reduction') {
+    if (amount < coupon.threshold) return 0;
+    return Math.min(coupon.value, amount);
+  }
+  if (coupon.type === 'discount') {
+    if (amount < coupon.threshold) return 0;
+    return Math.round(amount * (1 - coupon.value / 10));
+  }
+  return 0;
+}
+
+export function createCoupon(data: Omit<Coupon, 'id' | 'usedCount' | 'createdAt'>): Coupon {
+  const coupon: Coupon = {
+    id: `coupon-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...data,
+    usedCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+  coupons.unshift(coupon);
+  return coupon;
+}
+
+export function updateCoupon(id: string, data: Partial<Omit<Coupon, 'id' | 'createdAt'>>): Coupon | null {
+  const coupon = getCouponById(id);
+  if (!coupon) return null;
+  Object.assign(coupon, data);
+  return coupon;
+}
+
+export function deleteCoupon(id: string): boolean {
+  const index = coupons.findIndex(c => c.id === id);
+  if (index === -1) return false;
+  coupons.splice(index, 1);
+  return true;
 }
