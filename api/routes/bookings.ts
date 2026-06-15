@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification } from '../data/mockData';
-import type { BookingRequest, Booking, BookingStatus, TimeSlot } from '../../shared/types';
-import { BOOKING_STATUS_FLOW, TIME_SLOTS } from '../../shared/types';
+import type { BookingRequest, Booking, BookingStatus, TimeSlot, CancellationReason, BookingCancellation } from '../../shared/types';
+import { BOOKING_STATUS_FLOW, TIME_SLOTS, CANCELLATION_POLICY, CANCELLATION_REASONS } from '../../shared/types';
 
 const router = Router();
 
@@ -24,6 +24,28 @@ function getNextStatus(current: BookingStatus): BookingStatus | null {
     return null;
   }
   return BOOKING_STATUS_FLOW[index + 1];
+}
+
+function calculatePenalty(booking: Booking): { rate: number; amount: number; hoursUntilBooking: number } {
+  const bookingDateTime = new Date(`${booking.bookingDate}T${booking.timeSlot.split('-')[0]}:00`);
+  const now = new Date();
+  const diffMs = bookingDateTime.getTime() - now.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+
+  const avgBudget = (booking.budgetMin + booking.budgetMax) / 2;
+
+  if (diffHours >= CANCELLATION_POLICY.FREE_CANCEL_HOURS) {
+    return { rate: 0, amount: 0, hoursUntilBooking: diffHours };
+  } else if (diffHours >= 6) {
+    const rate = CANCELLATION_POLICY.PENALTY_RATE_BEFORE_24H;
+    return { rate, amount: Math.round(avgBudget * rate), hoursUntilBooking: diffHours };
+  } else if (diffHours > 0) {
+    const rate = CANCELLATION_POLICY.PENALTY_RATE_BEFORE_6H;
+    return { rate, amount: Math.round(avgBudget * rate), hoursUntilBooking: diffHours };
+  } else {
+    const rate = CANCELLATION_POLICY.PENALTY_RATE_LESS_6H;
+    return { rate, amount: Math.round(avgBudget * rate), hoursUntilBooking: diffHours };
+  }
 }
 
 function filterBookings(
@@ -260,6 +282,138 @@ router.patch('/:id/status', (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: '更新失败'
+    });
+  }
+});
+
+router.get('/:id/cancellation-info', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const booking = bookings.find(b => b.id === id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: '预约不存在'
+      });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: '该预约已被取消'
+      });
+    }
+
+    if (booking.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: '已完成的预约无法取消'
+      });
+    }
+
+    if (booking.status === 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: '进行中的预约无法取消，请联系纹身师协商'
+      });
+    }
+
+    const penalty = calculatePenalty(booking);
+
+    res.json({
+      success: true,
+      data: {
+        canCancel: true,
+        penaltyRate: penalty.rate,
+        penaltyAmount: penalty.amount,
+        hoursUntilBooking: penalty.hoursUntilBooking,
+        freeCancelHours: CANCELLATION_POLICY.FREE_CANCEL_HOURS,
+        reasons: CANCELLATION_REASONS,
+      }
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: '获取取消信息失败'
+    });
+  }
+});
+
+router.post('/:id/cancel', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason, note } = req.body as { reason: CancellationReason; note?: string };
+
+    if (!reason || !CANCELLATION_REASONS.includes(reason)) {
+      return res.status(400).json({
+        success: false,
+        message: '请选择有效的取消原因'
+      });
+    }
+
+    const booking = bookings.find(b => b.id === id);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: '预约不存在'
+      });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: '该预约已被取消'
+      });
+    }
+
+    if (booking.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: '已完成的预约无法取消'
+      });
+    }
+
+    if (booking.status === 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: '进行中的预约无法取消，请联系纹身师协商'
+      });
+    }
+
+    const penalty = calculatePenalty(booking);
+    const oldStatus = booking.status;
+
+    const cancellation: BookingCancellation = {
+      reason,
+      note,
+      cancelledAt: new Date().toISOString(),
+      penaltyRate: penalty.rate,
+      penaltyAmount: penalty.amount,
+    };
+
+    booking.status = 'cancelled';
+    booking.statusUpdatedAt = new Date().toISOString();
+    booking.cancellation = cancellation;
+    touchBookingUpdate();
+
+    createNotification('booking_cancelled', booking, oldStatus);
+
+    res.json({
+      success: true,
+      data: {
+        booking,
+        penaltyRate: penalty.rate,
+        penaltyAmount: penalty.amount,
+      },
+      message: penalty.amount > 0
+        ? `预约已取消，需支付违约金 ¥${penalty.amount}`
+        : '预约已取消，无需支付违约金'
+    });
+  } catch {
+    res.status(500).json({
+      success: false,
+      message: '取消预约失败'
     });
   }
 });

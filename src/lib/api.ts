@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -246,4 +246,40 @@ export async function removeArtistWork(artistId: string, workId: string): Promis
 export async function getArtistAnalytics(artistId: string): Promise<ArtistAnalytics | null> {
   const res = await request<ArtistAnalytics>(`/artists/${artistId}/analytics`);
   return res.success && res.data ? res.data : null;
+}
+
+export interface CancellationInfo {
+  canCancel: boolean;
+  penaltyRate: number;
+  penaltyAmount: number;
+  hoursUntilBooking: number;
+  freeCancelHours: number;
+  reasons: readonly string[];
+}
+
+export async function getCancellationInfo(bookingId: string): Promise<{ success: boolean; data?: CancellationInfo; message?: string }> {
+  const res = await request<CancellationInfo>(`/bookings/${bookingId}/cancellation-info`);
+  return {
+    success: res.success,
+    data: res.data,
+    message: res.message,
+  };
+}
+
+export async function cancelBooking(
+  bookingId: string,
+  reason: CancellationReason,
+  note?: string
+): Promise<{ success: boolean; message?: string; booking?: Booking; penaltyRate?: number; penaltyAmount?: number }> {
+  const res = await request<any>(`/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, note }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    booking: res.data?.booking,
+    penaltyRate: res.data?.penaltyRate,
+    penaltyAmount: res.data?.penaltyAmount,
+  };
 }

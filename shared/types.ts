@@ -29,6 +29,39 @@ export const BOOKING_STATUS_COLORS: Record<BookingStatus, string> = {
 
 export const BOOKING_STATUS_FLOW: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed'];
 
+export const CANCELLATION_REASONS = [
+  '计划有变，暂时不需要',
+  '找到了更合适的纹身师',
+  '预算调整',
+  '纹身师无法按时服务',
+  '身体原因',
+  '其他原因',
+] as const;
+
+export type CancellationReason = typeof CANCELLATION_REASONS[number];
+
+export const CANCELLATION_POLICY = {
+  FREE_CANCEL_HOURS: 24,
+  PENALTY_RATE_BEFORE_24H: 0.3,
+  PENALTY_RATE_BEFORE_6H: 0.5,
+  PENALTY_RATE_LESS_6H: 0.8,
+} as const;
+
+export interface CancellationResult {
+  success: boolean;
+  penaltyRate: number;
+  penaltyAmount: number;
+  message?: string;
+}
+
+export interface BookingCancellation {
+  reason: CancellationReason;
+  note?: string;
+  cancelledAt: string;
+  penaltyRate: number;
+  penaltyAmount: number;
+}
+
 export interface Work {
   id: string;
   title: string;
@@ -97,6 +130,7 @@ export interface Booking {
   statusUpdatedAt?: string;
   bookingDate: string;
   timeSlot: TimeSlot;
+  cancellation?: BookingCancellation;
 }
 
 export interface Review {

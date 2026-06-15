@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, Calendar, Clock, Loader2, User, RefreshCw, Bell, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Loader2, User, RefreshCw, Bell, CheckCircle, XCircle } from 'lucide-react';
 import type { Booking, Artist, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS } from '../../shared/types';
 import { getArtist } from '../lib/api';
@@ -8,6 +8,7 @@ import { useRealtimeBookings } from '../hooks/useRealtimeBookings';
 import { Navbar } from '../components/Navbar';
 import { BookingStatusBadge } from '../components/BookingStatusBadge';
 import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
+import { CancelBookingModal } from '../components/CancelBookingModal';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 function formatDate(dateStr: string) {
@@ -27,6 +28,8 @@ export function MyBookings() {
   const [searched, setSearched] = useState(false);
   const [artists, setArtists] = useState<Record<string, Artist | null>>({});
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialSearchDone = useRef(false);
   const { setUser: setNotificationUser } = useNotificationStore();
@@ -51,6 +54,25 @@ export function MyBookings() {
       initialSearchDone.current = true;
     }
   }, [searchParams, setNotificationUser]);
+
+  const canCancelBooking = (booking: Booking): boolean => {
+    return booking.status === 'pending' || booking.status === 'confirmed';
+  };
+
+  const handleOpenCancelModal = (booking: Booking) => {
+    setCancellingBooking(booking);
+    setCancelModalOpen(true);
+  };
+
+  const handleCloseCancelModal = () => {
+    setCancelModalOpen(false);
+    setCancellingBooking(null);
+  };
+
+  const handleBookingCancelled = () => {
+    handleCloseCancelModal();
+    refresh();
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,16 +307,51 @@ export function MyBookings() {
                       <BookingStatusTimeline currentStatus={booking.status} />
                     </div>
 
+                    {booking.cancellation && (
+                      <div className="mb-4 p-3 bg-gray-500/10 border border-gray-500/20 rounded-lg">
+                        <p className="text-gray-400 text-sm mb-1">
+                          <span className="text-gray-500">取消原因：</span>
+                          {booking.cancellation.reason}
+                        </p>
+                        {booking.cancellation.note && (
+                          <p className="text-gray-400 text-sm mb-1">
+                            <span className="text-gray-500">备注：</span>
+                            {booking.cancellation.note}
+                          </p>
+                        )}
+                        {booking.cancellation.penaltyAmount > 0 && (
+                          <p className="text-blood text-sm">
+                            <span className="text-gray-500">违约金：</span>
+                            ¥{booking.cancellation.penaltyAmount}
+                          </p>
+                        )}
+                        <p className="text-gray-500 text-xs mt-2">
+                          取消时间：{formatDate(booking.cancellation.cancelledAt)}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-4 border-t border-white/5">
                       <div className="text-gray-500 text-xs">
                         <Clock className="w-3 h-3 inline mr-1" />
                         提交时间：{formatDate(booking.createdAt)}
                       </div>
-                      {booking.statusUpdatedAt && (
-                        <div className="text-gray-500 text-xs">
-                          状态更新：{formatDate(booking.statusUpdatedAt)}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {booking.statusUpdatedAt && (
+                          <div className="text-gray-500 text-xs">
+                            状态更新：{formatDate(booking.statusUpdatedAt)}
+                          </div>
+                        )}
+                        {canCancelBooking(booking) && (
+                          <button
+                            onClick={() => handleOpenCancelModal(booking)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-blood hover:text-white hover:bg-blood border border-blood/50 hover:border-blood transition-all duration-200"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            取消预约
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -303,6 +360,13 @@ export function MyBookings() {
           ) : null}
         </div>
       </div>
+
+      <CancelBookingModal
+        open={cancelModalOpen}
+        booking={cancellingBooking}
+        onClose={handleCloseCancelModal}
+        onCancelled={handleBookingCancelled}
+      />
     </div>
   );
 }
