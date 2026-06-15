@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Megaphone, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getActiveAnnouncements } from '../lib/api';
 import type { Announcement } from '../../shared/types';
@@ -8,6 +8,7 @@ export function AnnouncementBanner() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const announcementsRef = useRef<Announcement[]>([]);
 
   const fetchAnnouncements = useCallback(async () => {
     const data = await getActiveAnnouncements();
@@ -21,11 +22,26 @@ export function AnnouncementBanner() {
   }, [fetchAnnouncements]);
 
   useEffect(() => {
+    announcementsRef.current = announcements;
+    if (currentIndex >= announcements.length) {
+      setCurrentIndex(0);
+    }
+  }, [announcements, currentIndex]);
+
+  useEffect(() => {
     if (announcements.length <= 1) return;
     const timer = setInterval(() => {
+      const len = announcementsRef.current.length;
+      if (len <= 1) return;
       setIsTransitioning(true);
       setTimeout(() => {
-        setCurrentIndex(prev => (prev + 1) % announcements.length);
+        const innerLen = announcementsRef.current.length;
+        if (innerLen <= 1) {
+          setCurrentIndex(0);
+          setIsTransitioning(false);
+          return;
+        }
+        setCurrentIndex(prev => (prev + 1) % innerLen);
         setIsTransitioning(false);
       }, 300);
     }, 5000);
@@ -33,26 +49,41 @@ export function AnnouncementBanner() {
   }, [announcements.length]);
 
   const handlePrev = () => {
-    if (announcements.length <= 1) return;
+    const len = announcementsRef.current.length;
+    if (len <= 1) return;
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentIndex(prev => (prev - 1 + announcements.length) % announcements.length);
+      const innerLen = announcementsRef.current.length;
+      if (innerLen <= 1) {
+        setCurrentIndex(0);
+        setIsTransitioning(false);
+        return;
+      }
+      setCurrentIndex(prev => (prev - 1 + innerLen) % innerLen);
       setIsTransitioning(false);
     }, 300);
   };
 
   const handleNext = () => {
-    if (announcements.length <= 1) return;
+    const len = announcementsRef.current.length;
+    if (len <= 1) return;
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentIndex(prev => (prev + 1) % announcements.length);
+      const innerLen = announcementsRef.current.length;
+      if (innerLen <= 1) {
+        setCurrentIndex(0);
+        setIsTransitioning(false);
+        return;
+      }
+      setCurrentIndex(prev => (prev + 1) % innerLen);
       setIsTransitioning(false);
     }, 300);
   };
 
   if (announcements.length === 0 || dismissed) return null;
 
-  const current = announcements[currentIndex];
+  const safeIndex = Math.min(currentIndex, announcements.length - 1);
+  const current = announcements[safeIndex];
   const priorityBg = current.priority === 'high'
     ? 'bg-red-900/60 border-b border-red-500/30'
     : current.priority === 'normal'
