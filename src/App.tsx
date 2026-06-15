@@ -7,6 +7,7 @@ import { ArtistDashboard } from "@/pages/ArtistDashboard";
 import { ArtistAnalytics } from "@/pages/ArtistAnalytics";
 import { Notifications } from "@/pages/Notifications";
 import { UserProfile } from "@/pages/UserProfile";
+import { HelpCenter } from "@/pages/HelpCenter";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/artist-analytics" element={<ArtistAnalytics />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile" element={<UserProfile />} />
+        <Route path="/help" element={<HelpCenter />} />
         <Route path="*" element={<Home />} />
       </Routes>
     </Router>

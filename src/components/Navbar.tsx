@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, Heart, Calendar, Palette, Bell, User } from 'lucide-react';
+import { Droplet, Heart, Calendar, Palette, Bell, User, HelpCircle } from 'lucide-react';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 export function Navbar() {
