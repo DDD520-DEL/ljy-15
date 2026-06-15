@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification, getCouponById, calculateCouponDiscount, useUserCoupon, getUserAvailableCoupons } from '../data/mockData';
+import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification, redeemCoupon } from '../data/mockData';
 import type { BookingRequest, Booking, BookingStatus, TimeSlot, CancellationReason, BookingCancellation } from '../../shared/types';
 import { BOOKING_STATUS_FLOW, TIME_SLOTS, CANCELLATION_POLICY, CANCELLATION_REASONS } from '../../shared/types';
 
@@ -458,27 +458,22 @@ router.post('/', (req: Request, res: Response) => {
       });
     }
 
+    const bookingId = `booking-${Date.now()}`;
     let discountAmount = 0;
     if (body.couponId) {
-      const coupon = getCouponById(body.couponId);
-      if (!coupon || !coupon.enabled) {
-        return res.status(400).json({
-          success: false,
-          message: '优惠券不存在或已失效'
-        });
-      }
       const avgBudget = (body.budgetMin + body.budgetMax) / 2;
-      discountAmount = calculateCouponDiscount(coupon, avgBudget);
-      if (discountAmount <= 0) {
+      const coupon = redeemCoupon(body.couponId, body.contact, bookingId, avgBudget);
+      if (!coupon.success) {
         return res.status(400).json({
           success: false,
-          message: '优惠券不满足使用条件'
+          message: coupon.error || '优惠券使用失败'
         });
       }
+      discountAmount = coupon.discountAmount;
     }
 
     const booking: Booking = {
-      id: `booking-${Date.now()}`,
+      id: bookingId,
       ...body,
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -488,15 +483,6 @@ router.post('/', (req: Request, res: Response) => {
     };
 
     bookings.push(booking);
-
-    if (body.couponId && discountAmount > 0) {
-      const userId = body.contact;
-      const userCoupons = getUserAvailableCoupons(userId);
-      const matchedUc = userCoupons.find(uc => uc.couponId === body.couponId);
-      if (matchedUc) {
-        useUserCoupon(matchedUc.id, booking.id);
-      }
-    }
 
     touchBookingUpdate();
     createNotification('booking_created', booking);

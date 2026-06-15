@@ -363,7 +363,7 @@ export let coupons: Coupon[] = [
     threshold: 500,
     value: 50,
     totalCount: 100,
-    usedCount: 0,
+    usedCount: 3,
     perUserLimit: 1,
     startDate: now.toISOString().split('T')[0],
     endDate: in30Days.toISOString().split('T')[0],
@@ -391,7 +391,7 @@ export let coupons: Coupon[] = [
     threshold: 0,
     value: 9,
     totalCount: 200,
-    usedCount: 0,
+    usedCount: 12,
     perUserLimit: 1,
     startDate: now.toISOString().split('T')[0],
     endDate: in60Days.toISOString().split('T')[0],
@@ -419,7 +419,7 @@ export let coupons: Coupon[] = [
     threshold: 500,
     value: 8.5,
     totalCount: 100,
-    usedCount: 0,
+    usedCount: 5,
     perUserLimit: 1,
     startDate: now.toISOString().split('T')[0],
     endDate: in60Days.toISOString().split('T')[0],
@@ -462,7 +462,6 @@ export function claimCoupon(couponId: string, userId: string): UserCoupon | null
 
   const today = new Date().toISOString().split('T')[0];
   if (coupon.startDate > today || coupon.endDate < today) return null;
-  if (coupon.usedCount >= coupon.totalCount) return null;
 
   const userClaimed = userCoupons.filter(
     uc => uc.couponId === couponId && uc.userId === userId
@@ -478,17 +477,91 @@ export function claimCoupon(couponId: string, userId: string): UserCoupon | null
   };
 
   userCoupons.push(userCoupon);
-  coupon.usedCount += 1;
   return userCoupon;
 }
 
 export function useUserCoupon(userCouponId: string, bookingId: string): boolean {
   const uc = userCoupons.find(u => u.id === userCouponId);
   if (!uc || uc.used) return false;
+  const coupon = getCouponById(uc.couponId);
+  if (!coupon || coupon.usedCount >= coupon.totalCount) return false;
   uc.used = true;
   uc.usedAt = new Date().toISOString();
   uc.bookingId = bookingId;
+  coupon.usedCount += 1;
   return true;
+}
+
+export interface RedeemCouponResult {
+  success: boolean;
+  discountAmount: number;
+  userCouponId?: string;
+  coupon?: Coupon;
+  error?: string;
+}
+
+export function redeemCoupon(
+  couponId: string,
+  userId: string,
+  bookingId: string,
+  amount: number
+): RedeemCouponResult {
+  const coupon = getCouponById(couponId);
+  if (!coupon) {
+    return { success: false, discountAmount: 0, error: '优惠券不存在' };
+  }
+  if (!coupon.enabled) {
+    return { success: false, discountAmount: 0, error: '优惠券已失效' };
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  if (coupon.startDate > today) {
+    return { success: false, discountAmount: 0, error: '优惠券尚未生效' };
+  }
+  if (coupon.endDate < today) {
+    return { success: false, discountAmount: 0, error: '优惠券已过期' };
+  }
+  if (coupon.usedCount >= coupon.totalCount) {
+    return { success: false, discountAmount: 0, error: '优惠券已被领完' };
+  }
+
+  const discount = calculateCouponDiscount(coupon, amount);
+  if (discount <= 0) {
+    return { success: false, discountAmount: 0, error: '不满足优惠券使用门槛' };
+  }
+
+  let userCoupon = userCoupons.find(
+    uc => uc.couponId === couponId && uc.userId === userId && !uc.used
+  );
+
+  if (!userCoupon) {
+    const userClaimedTotal = userCoupons.filter(
+      uc => uc.couponId === couponId && uc.userId === userId
+    ).length;
+    if (userClaimedTotal >= coupon.perUserLimit) {
+      return { success: false, discountAmount: 0, error: '已达该优惠券每人使用上限' };
+    }
+    userCoupon = {
+      id: `uc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      couponId,
+      userId,
+      used: false,
+      claimedAt: new Date().toISOString(),
+    };
+    userCoupons.push(userCoupon);
+  }
+
+  userCoupon.used = true;
+  userCoupon.usedAt = new Date().toISOString();
+  userCoupon.bookingId = bookingId;
+  coupon.usedCount += 1;
+
+  return {
+    success: true,
+    discountAmount: discount,
+    userCouponId: userCoupon.id,
+    coupon,
+  };
 }
 
 export function calculateCouponDiscount(coupon: Coupon, amount: number): number {
