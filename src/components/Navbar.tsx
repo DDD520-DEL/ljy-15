@@ -62,6 +62,15 @@ export function Navbar() {
               <User className="w-4 h-4" />
               个人中心
             </Link>
+            <Link
+              to="/help"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/help' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <HelpCircle className="w-4 h-4" />
+              帮助中心
+            </Link>
           </div>
 
           <div className="flex items-center gap-1">
@@ -108,6 +117,13 @@ export function Navbar() {
               title="个人中心"
             >
               <User className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/help"
+              className="p-2 text-gray-400 hover:text-blood transition-colors"
+              title="帮助中心"
+            >
+              <HelpCircle className="w-5 h-5" />
             </Link>
           </div>
         </div>
