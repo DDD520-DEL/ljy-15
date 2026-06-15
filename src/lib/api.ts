@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority, PriceCalendarEntry, PriceInfo } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -67,13 +67,14 @@ export async function removeFavorite(artistId: string): Promise<boolean> {
   return res.success;
 }
 
-export async function getAvailableSlots(artistId: string, date: string): Promise<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: readonly TimeSlot[] }> {
-  const res = await request<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: TimeSlot[] }>(`/bookings/occupied-slots?artistId=${encodeURIComponent(artistId)}&date=${encodeURIComponent(date)}`);
+export async function getAvailableSlots(artistId: string, date: string): Promise<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: readonly TimeSlot[]; priceInfo?: PriceInfo }> {
+  const res = await request<{ occupiedSlots: TimeSlot[]; availableSlots: TimeSlot[]; allSlots: TimeSlot[]; priceInfo?: PriceInfo }>(`/bookings/occupied-slots?artistId=${encodeURIComponent(artistId)}&date=${encodeURIComponent(date)}`);
   if (res.success && res.data) {
     return {
       occupiedSlots: res.data.occupiedSlots,
       availableSlots: res.data.availableSlots,
       allSlots: TIME_SLOTS,
+      priceInfo: res.data.priceInfo,
     };
   }
   return {
@@ -600,5 +601,92 @@ export async function deleteAnnouncement(id: string): Promise<{ success: boolean
   return {
     success: res.success,
     message: res.message,
+  };
+}
+
+export async function getPriceCalendar(artistId: string, startDate?: string, endDate?: string): Promise<PriceCalendarEntry[]> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  const queryStr = params.toString();
+  const res = await request<PriceCalendarEntry[]>(`/price-calendar/artists/${artistId}${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function getPriceInfo(artistId: string, date: string): Promise<PriceInfo | null> {
+  const res = await request<PriceInfo>(`/price-calendar/artists/${artistId}/price-info?date=${encodeURIComponent(date)}`);
+  return res.success && res.data ? res.data : null;
+}
+
+export async function getPriceInfos(artistId: string, startDate: string, endDate: string): Promise<PriceInfo[]> {
+  const res = await request<PriceInfo[]>(`/price-calendar/artists/${artistId}/price-info?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function upsertPriceCalendarEntry(
+  artistId: string,
+  date: string,
+  priceMin: number,
+  priceMax: number,
+  note?: string
+): Promise<{ success: boolean; message?: string; data?: PriceCalendarEntry }> {
+  const res = await request<PriceCalendarEntry>(`/price-calendar/artists/${artistId}/${date}`, {
+    method: 'PUT',
+    body: JSON.stringify({ priceMin, priceMax, note }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    data: res.data,
+  };
+}
+
+export async function batchUpsertPriceCalendar(
+  artistId: string,
+  startDate: string,
+  endDate: string,
+  priceMin: number,
+  priceMax: number,
+  note?: string
+): Promise<{ success: boolean; message?: string; data?: PriceCalendarEntry[] }> {
+  const res = await request<PriceCalendarEntry[]>(`/price-calendar/artists/${artistId}/batch`, {
+    method: 'PUT',
+    body: JSON.stringify({ startDate, endDate, priceMin, priceMax, note }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    data: res.data,
+  };
+}
+
+export async function deletePriceCalendarEntry(
+  artistId: string,
+  date: string
+): Promise<{ success: boolean; message?: string }> {
+  const res = await request(`/price-calendar/artists/${artistId}/${date}`, {
+    method: 'DELETE',
+  });
+  return {
+    success: res.success,
+    message: res.message,
+  };
+}
+
+export async function deletePriceCalendarRange(
+  artistId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ success: boolean; message?: string; data?: { deletedCount: number } }> {
+  const res = await request<{ deletedCount: number }>(
+    `/price-calendar/artists/${artistId}/batch?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+  return {
+    success: res.success,
+    message: res.message,
+    data: res.data,
   };
 }

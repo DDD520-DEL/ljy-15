@@ -369,3 +369,33 @@ export interface Announcement {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PriceCalendarEntry {
+  id: string;
+  artistId: string;
+  date: string;
+  priceMin: number;
+  priceMax: number;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PriceCalendarUpsertRequest {
+  date: string;
+  priceMin: number;
+  priceMax: number;
+  note?: string;
+}
+
+export interface PriceCalendarBatchUpsertRequest {
+  entries: Omit<PriceCalendarUpsertRequest, 'date'> & { startDate: string; endDate: string }[];
+}
+
+export interface PriceInfo {
+  date: string;
+  priceMin: number;
+  priceMax: number;
+  isCustomPrice: boolean;
+  note?: string;
+}

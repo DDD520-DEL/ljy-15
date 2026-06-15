@@ -1,4 +1,4 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority, PriceCalendarEntry, PriceInfo } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
@@ -802,4 +802,174 @@ export function deleteAnnouncement(id: string): boolean {
   announcements.splice(index, 1);
   touchAnnouncementUpdate();
   return true;
+}
+
+export let priceCalendar: PriceCalendarEntry[] = [];
+export let lastPriceCalendarUpdate = Date.now();
+
+export function touchPriceCalendarUpdate() {
+  lastPriceCalendarUpdate = Date.now();
+}
+
+export function getPriceCalendarByArtistId(artistId: string, startDate?: string, endDate?: string): PriceCalendarEntry[] {
+  let filtered = priceCalendar.filter(p => p.artistId === artistId);
+  if (startDate) {
+    filtered = filtered.filter(p => p.date >= startDate);
+  }
+  if (endDate) {
+    filtered = filtered.filter(p => p.date <= endDate);
+  }
+  return filtered.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function getPriceCalendarEntry(artistId: string, date: string): PriceCalendarEntry | undefined {
+  return priceCalendar.find(p => p.artistId === artistId && p.date === date);
+}
+
+export function getPriceInfo(artistId: string, date: string): PriceInfo {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) {
+    return {
+      date,
+      priceMin: 0,
+      priceMax: 0,
+      isCustomPrice: false,
+    };
+  }
+
+  const customPrice = getPriceCalendarEntry(artistId, date);
+  if (customPrice) {
+    return {
+      date,
+      priceMin: customPrice.priceMin,
+      priceMax: customPrice.priceMax,
+      isCustomPrice: true,
+      note: customPrice.note,
+    };
+  }
+
+  return {
+    date,
+    priceMin: artist.priceMin,
+    priceMax: artist.priceMax,
+    isCustomPrice: false,
+  };
+}
+
+export function getPriceInfos(artistId: string, startDate: string, endDate: string): PriceInfo[] {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return [];
+
+  const customPrices = getPriceCalendarByArtistId(artistId, startDate, endDate);
+  const customPriceMap = new Map(customPrices.map(p => [p.date, p]));
+
+  const results: PriceInfo[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0];
+    const customPrice = customPriceMap.get(dateStr);
+
+    if (customPrice) {
+      results.push({
+        date: dateStr,
+        priceMin: customPrice.priceMin,
+        priceMax: customPrice.priceMax,
+        isCustomPrice: true,
+        note: customPrice.note,
+      });
+    } else {
+      results.push({
+        date: dateStr,
+        priceMin: artist.priceMin,
+        priceMax: artist.priceMax,
+        isCustomPrice: false,
+      });
+    }
+  }
+
+  return results;
+}
+
+export function upsertPriceCalendarEntry(
+  artistId: string,
+  date: string,
+  priceMin: number,
+  priceMax: number,
+  note?: string
+): PriceCalendarEntry | null {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return null;
+
+  const existing = getPriceCalendarEntry(artistId, date);
+  const now = new Date().toISOString();
+
+  if (existing) {
+    existing.priceMin = priceMin;
+    existing.priceMax = priceMax;
+    existing.note = note;
+    existing.updatedAt = now;
+    touchPriceCalendarUpdate();
+    return existing;
+  }
+
+  const entry: PriceCalendarEntry = {
+    id: `price-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    artistId,
+    date,
+    priceMin,
+    priceMax,
+    note,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  priceCalendar.push(entry);
+  touchPriceCalendarUpdate();
+  return entry;
+}
+
+export function batchUpsertPriceCalendar(
+  artistId: string,
+  startDate: string,
+  endDate: string,
+  priceMin: number,
+  priceMax: number,
+  note?: string
+): PriceCalendarEntry[] | null {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return null;
+
+  const results: PriceCalendarEntry[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0];
+    const entry = upsertPriceCalendarEntry(artistId, dateStr, priceMin, priceMax, note);
+    if (entry) {
+      results.push(entry);
+    }
+  }
+
+  return results;
+}
+
+export function deletePriceCalendarEntry(artistId: string, date: string): boolean {
+  const index = priceCalendar.findIndex(p => p.artistId === artistId && p.date === date);
+  if (index === -1) return false;
+  priceCalendar.splice(index, 1);
+  touchPriceCalendarUpdate();
+  return true;
+}
+
+export function deletePriceCalendarRange(artistId: string, startDate: string, endDate: string): number {
+  const initialLength = priceCalendar.length;
+  priceCalendar = priceCalendar.filter(p => !(p.artistId === artistId && p.date >= startDate && p.date <= endDate));
+  const deletedCount = initialLength - priceCalendar.length;
+  if (deletedCount > 0) {
+    touchPriceCalendarUpdate();
+  }
+  return deletedCount;
 }

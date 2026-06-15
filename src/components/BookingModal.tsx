@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Send, CheckCircle, Calendar, Clock, Loader2, Ticket, Share2 } from 'lucide-react';
-import type { Artist, TimeSlot, Coupon, Booking } from '../../shared/types';
+import { X, Send, CheckCircle, Calendar, Clock, Loader2, Ticket, Share2, Sparkles } from 'lucide-react';
+import type { Artist, TimeSlot, Coupon, Booking, PriceInfo } from '../../shared/types';
 import { submitBooking, getAvailableSlots, getAvailableCoupons } from '../lib/api';
 import { BookingShareCard } from './BookingShareCard';
 
@@ -55,6 +55,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [occupiedSlots, setOccupiedSlots] = useState<TimeSlot[]>([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [selectedCouponId, setSelectedCouponId] = useState<string>('');
   const [loadingCoupons, setLoadingCoupons] = useState(false);
@@ -76,6 +77,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
     setErrorMsg('');
     setOccupiedSlots([]);
     setAvailableSlots([]);
+    setPriceInfo(null);
     setCoupons([]);
     setSelectedCouponId('');
     setShowCouponList(false);
@@ -94,6 +96,7 @@ export function BookingModal({ open, artist, onClose }: Props) {
         setAvailableSlots([]);
         setOccupiedSlots([]);
         setTimeSlot('');
+        setPriceInfo(null);
         return;
       }
 
@@ -102,12 +105,20 @@ export function BookingModal({ open, artist, onClose }: Props) {
         const result = await getAvailableSlots(artist.id, bookingDate);
         setOccupiedSlots(result.occupiedSlots);
         setAvailableSlots(result.availableSlots);
+        if (result.priceInfo) {
+          setPriceInfo(result.priceInfo);
+          if (!budgetMin && !budgetMax) {
+            setBudgetMin(String(result.priceInfo.priceMin));
+            setBudgetMax(String(result.priceInfo.priceMax));
+          }
+        }
         if (timeSlot && !result.availableSlots.includes(timeSlot)) {
           setTimeSlot('');
         }
       } catch {
         setOccupiedSlots([]);
         setAvailableSlots([]);
+        setPriceInfo(null);
       } finally {
         setLoadingSlots(false);
       }
@@ -289,28 +300,54 @@ export function BookingModal({ open, artist, onClose }: Props) {
             </div>
 
             {bookingDate && (
-              <div className="bg-ink-300/50 border border-white/5 rounded-lg p-3">
-                <p className="text-gray-400 text-xs mb-2">
-                  {loadingSlots ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      正在查询可用时段...
-                    </span>
-                  ) : availableSlots.length > 0 ? (
-                    <span className="text-green-400">
-                      当日还有 {availableSlots.length} 个时段可预约
-                    </span>
-                  ) : (
-                    <span className="text-blood">
-                      当日所有时段均已约满，请选择其他日期
-                    </span>
-                  )}
-                </p>
-                {!loadingSlots && occupiedSlots.length > 0 && (
-                  <p className="text-gray-500 text-xs">
-                    已占用时段：{occupiedSlots.join('、')}
+              <div className="bg-ink-300/50 border border-white/5 rounded-lg p-3 space-y-2">
+                {priceInfo && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 text-xs">当日价格：</span>
+                      <span className={`font-bold ${priceInfo.isCustomPrice ? 'text-gold' : 'text-white'}`}>
+                        ¥{priceInfo.priceMin} - ¥{priceInfo.priceMax}
+                      </span>
+                      {priceInfo.isCustomPrice && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">
+                          <Sparkles className="w-3 h-3" />
+                          特殊定价
+                        </span>
+                      )}
+                    </div>
+                    {!priceInfo.isCustomPrice && (
+                      <span className="text-gray-500 text-xs">默认价格</span>
+                    )}
+                  </div>
+                )}
+                {priceInfo?.note && (
+                  <p className="text-gold/80 text-xs">
+                    备注：{priceInfo.note}
                   </p>
                 )}
+                <div className="border-t border-white/5 pt-2">
+                  <p className="text-gray-400 text-xs mb-1">
+                    {loadingSlots ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        正在查询可用时段...
+                      </span>
+                    ) : availableSlots.length > 0 ? (
+                      <span className="text-green-400">
+                        当日还有 {availableSlots.length} 个时段可预约
+                      </span>
+                    ) : (
+                      <span className="text-blood">
+                        当日所有时段均已约满，请选择其他日期
+                      </span>
+                    )}
+                  </p>
+                  {!loadingSlots && occupiedSlots.length > 0 && (
+                    <p className="text-gray-500 text-xs">
+                      已占用时段：{occupiedSlots.join('、')}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

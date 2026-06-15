@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification, redeemCoupon } from '../data/mockData';
+import { bookings, artists, lastBookingUpdate, touchBookingUpdate, createNotification, redeemCoupon, getPriceInfo } from '../data/mockData';
 import type { BookingRequest, Booking, BookingStatus, TimeSlot, CancellationReason, BookingCancellation } from '../../shared/types';
 import { BOOKING_STATUS_FLOW, TIME_SLOTS, CANCELLATION_POLICY, CANCELLATION_REASONS } from '../../shared/types';
 
@@ -16,14 +16,6 @@ function canTransition(from: BookingStatus, to: BookingStatus): boolean {
   const fromIndex = BOOKING_STATUS_FLOW.indexOf(from);
   const toIndex = BOOKING_STATUS_FLOW.indexOf(to);
   return fromIndex !== -1 && toIndex !== -1 && toIndex === fromIndex + 1;
-}
-
-function getNextStatus(current: BookingStatus): BookingStatus | null {
-  const index = BOOKING_STATUS_FLOW.indexOf(current);
-  if (index === -1 || index === BOOKING_STATUS_FLOW.length - 1) {
-    return null;
-  }
-  return BOOKING_STATUS_FLOW[index + 1];
 }
 
 function calculatePenalty(booking: Booking): { rate: number; amount: number; hoursUntilBooking: number } {
@@ -95,7 +87,7 @@ router.get('/', (req: Request, res: Response) => {
       data: filtered,
       timestamp: lastBookingUpdate
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '获取预约列表失败'
@@ -150,7 +142,7 @@ router.get('/updates', async (req: Request, res: Response) => {
     req.on('close', () => {
       clearInterval(checkInterval);
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '监听更新失败'
@@ -190,15 +182,18 @@ router.get('/occupied-slots', (req: Request, res: Response) => {
       !occupiedSlots.includes(slot as TimeSlot)
     );
 
+    const priceInfo = getPriceInfo(artistId as string, dateStr);
+
     res.json({
       success: true,
       data: {
         occupiedSlots,
         availableSlots,
         allSlots: TIME_SLOTS,
+        priceInfo,
       }
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '查询可用时段失败'
@@ -459,9 +454,14 @@ router.post('/', (req: Request, res: Response) => {
     }
 
     const bookingId = `booking-${Date.now()}`;
+    const priceInfo = getPriceInfo(body.artistId, body.bookingDate);
+
+    const finalBudgetMin = body.budgetMin || priceInfo.priceMin;
+    const finalBudgetMax = body.budgetMax || priceInfo.priceMax;
+
     let discountAmount = 0;
     if (body.couponId) {
-      const avgBudget = (body.budgetMin + body.budgetMax) / 2;
+      const avgBudget = (finalBudgetMin + finalBudgetMax) / 2;
       const coupon = redeemCoupon(body.couponId, body.contact, bookingId, avgBudget);
       if (!coupon.success) {
         return res.status(400).json({
@@ -475,6 +475,8 @@ router.post('/', (req: Request, res: Response) => {
     const booking: Booking = {
       id: bookingId,
       ...body,
+      budgetMin: finalBudgetMin,
+      budgetMax: finalBudgetMax,
       status: 'pending',
       createdAt: new Date().toISOString(),
       statusUpdatedAt: new Date().toISOString(),
@@ -490,9 +492,10 @@ router.post('/', (req: Request, res: Response) => {
     res.status(201).json({
       success: true,
       data: booking,
+      priceInfo,
       message: '预约意向已提交，纹身师将尽快与您联系'
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
       message: '提交预约失败'

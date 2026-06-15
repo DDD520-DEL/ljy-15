@@ -24,6 +24,7 @@ import applicationsRoutes from './routes/applications'
 import couponsRoutes from './routes/coupons'
 import feedbacksRoutes from './routes/feedbacks'
 import announcementsRoutes from './routes/announcements'
+import priceCalendarRoutes from './routes/price-calendar'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -54,6 +55,7 @@ app.use('/api/applications', applicationsRoutes)
 app.use('/api/coupons', couponsRoutes)
 app.use('/api/feedbacks', feedbacksRoutes)
 app.use('/api/announcements', announcementsRoutes)
+app.use('/api/price-calendar', priceCalendarRoutes)
 
 /**
  * health
