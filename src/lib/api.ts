@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -547,5 +547,58 @@ export async function updateFeedbackStatus(id: string, status: FeedbackStatus, r
     success: res.success,
     message: res.message,
     feedback: res.data,
+  };
+}
+
+export async function getActiveAnnouncements(): Promise<Announcement[]> {
+  const res = await request<Announcement[]>('/announcements/active');
+  return res.success && res.data ? res.data : [];
+}
+
+export async function getAnnouncements(enabled?: boolean, priority?: AnnouncementPriority): Promise<Announcement[]> {
+  const params = new URLSearchParams();
+  if (enabled !== undefined) params.set('enabled', String(enabled));
+  if (priority) params.set('priority', priority);
+  const queryStr = params.toString();
+  const res = await request<Announcement[]>(`/announcements${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? res.data : [];
+}
+
+export async function getAnnouncement(id: string): Promise<Announcement | null> {
+  const res = await request<Announcement>(`/announcements/${id}`);
+  return res.success && res.data ? res.data : null;
+}
+
+export async function createAnnouncement(data: Omit<Announcement, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; message?: string; announcement?: Announcement }> {
+  const res = await request<Announcement>('/announcements', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    announcement: res.data,
+  };
+}
+
+export async function updateAnnouncement(id: string, data: Partial<Omit<Announcement, 'id' | 'createdAt'>>): Promise<{ success: boolean; message?: string; announcement?: Announcement }> {
+  const res = await request<Announcement>(`/announcements/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    announcement: res.data,
+  };
+}
+
+export async function deleteAnnouncement(id: string): Promise<{ success: boolean; message?: string }> {
+  const res = await request(`/announcements/${id}`, {
+    method: 'DELETE',
+  });
+  return {
+    success: res.success,
+    message: res.message,
   };
 }

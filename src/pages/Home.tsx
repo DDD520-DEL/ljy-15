@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Navbar } from '../components/Navbar';
+import { AnnouncementBanner } from '../components/AnnouncementBanner';
 import { StyleTagCloud } from '../components/StyleTagCloud';
 import { FilterBar } from '../components/FilterBar';
 import { Waterfall } from '../components/Waterfall';
@@ -21,6 +22,7 @@ export function Home() {
 
   return (
     <div className="min-h-screen">
+      <AnnouncementBanner />
       <Navbar />
 
       <section className="relative py-16 md:py-24 overflow-hidden">

@@ -343,3 +343,29 @@ export interface FeedbackSubmitRequest {
   contact?: string;
   userId?: string;
 }
+
+export type AnnouncementPriority = 'low' | 'normal' | 'high';
+
+export const ANNOUNCEMENT_PRIORITY_LABELS: Record<AnnouncementPriority, string> = {
+  low: '低',
+  normal: '普通',
+  high: '紧急',
+};
+
+export const ANNOUNCEMENT_PRIORITY_COLORS: Record<AnnouncementPriority, string> = {
+  low: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  normal: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  high: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  priority: AnnouncementPriority;
+  startDate: string;
+  endDate: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

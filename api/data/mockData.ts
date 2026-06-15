@@ -1,4 +1,4 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, Feedback, FeedbackSubmitRequest, FeedbackStatus, FeedbackCategory, Announcement, AnnouncementPriority } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
@@ -697,4 +697,109 @@ export function updateFeedbackStatus(id: string, status: FeedbackStatus, reply?:
   }
   touchFeedbackUpdate();
   return feedback;
+}
+
+const nowDate = new Date();
+const threeDaysAgo = new Date(nowDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+const sevenDaysLater = new Date(nowDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+const oneDayAgo = new Date(nowDate.getTime() - 1 * 24 * 60 * 60 * 1000);
+const thirtyDaysLater = new Date(nowDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+const tenDaysLater = new Date(nowDate.getTime() + 10 * 24 * 60 * 60 * 1000);
+const fiveDaysAgo = new Date(nowDate.getTime() - 5 * 24 * 60 * 60 * 1000);
+const twoDaysAgo = new Date(nowDate.getTime() - 2 * 24 * 60 * 60 * 1000);
+
+export let announcements: Announcement[] = [
+  {
+    id: 'announcement-1',
+    title: '平台春节期间服务安排通知',
+    content: '春节期间（1月28日-2月4日），部分纹身师可能无法及时响应预约，请提前沟通确认。平台客服将保持在线，如有问题可随时联系。',
+    priority: 'high',
+    startDate: threeDaysAgo.toISOString().split('T')[0],
+    endDate: sevenDaysLater.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: threeDaysAgo.toISOString(),
+    updatedAt: threeDaysAgo.toISOString(),
+  },
+  {
+    id: 'announcement-2',
+    title: '新风格上线：暗黑哥特风',
+    content: '平台现已支持暗黑哥特风格分类，多位擅长此风格的纹身师已入驻，欢迎探索体验！',
+    priority: 'normal',
+    startDate: oneDayAgo.toISOString().split('T')[0],
+    endDate: thirtyDaysLater.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: oneDayAgo.toISOString(),
+    updatedAt: oneDayAgo.toISOString(),
+  },
+  {
+    id: 'announcement-3',
+    title: '限时优惠活动进行中',
+    content: '即日起至月底，新用户首单立减100元，老用户推荐好友双方各得50元优惠券，活动详情请查看优惠券页面。',
+    priority: 'normal',
+    startDate: fiveDaysAgo.toISOString().split('T')[0],
+    endDate: tenDaysLater.toISOString().split('T')[0],
+    enabled: true,
+    createdAt: fiveDaysAgo.toISOString(),
+    updatedAt: twoDaysAgo.toISOString(),
+  },
+];
+
+export let lastAnnouncementUpdate = Date.now();
+
+export function touchAnnouncementUpdate() {
+  lastAnnouncementUpdate = Date.now();
+}
+
+export function getAnnouncementById(id: string): Announcement | undefined {
+  return announcements.find(a => a.id === id);
+}
+
+export function getAllAnnouncements(enabled?: boolean, priority?: AnnouncementPriority): Announcement[] {
+  let filtered = [...announcements];
+  if (enabled !== undefined) {
+    filtered = filtered.filter(a => a.enabled === enabled);
+  }
+  if (priority) {
+    filtered = filtered.filter(a => a.priority === priority);
+  }
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function getActiveAnnouncements(): Announcement[] {
+  const today = new Date().toISOString().split('T')[0];
+  return announcements
+    .filter(a => a.enabled && a.startDate <= today && a.endDate >= today)
+    .sort((a, b) => {
+      const priorityOrder: Record<AnnouncementPriority, number> = { high: 0, normal: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+}
+
+export function createAnnouncement(data: Omit<Announcement, 'id' | 'createdAt' | 'updatedAt'>): Announcement {
+  const now = new Date().toISOString();
+  const announcement: Announcement = {
+    id: `announcement-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...data,
+    createdAt: now,
+    updatedAt: now,
+  };
+  announcements.unshift(announcement);
+  touchAnnouncementUpdate();
+  return announcement;
+}
+
+export function updateAnnouncement(id: string, data: Partial<Omit<Announcement, 'id' | 'createdAt'>>): Announcement | null {
+  const announcement = getAnnouncementById(id);
+  if (!announcement) return null;
+  Object.assign(announcement, data, { updatedAt: new Date().toISOString() });
+  touchAnnouncementUpdate();
+  return announcement;
+}
+
+export function deleteAnnouncement(id: string): boolean {
+  const index = announcements.findIndex(a => a.id === id);
+  if (index === -1) return false;
+  announcements.splice(index, 1);
+  touchAnnouncementUpdate();
+  return true;
 }
