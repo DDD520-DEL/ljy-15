@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, Heart, Calendar, Palette, Bell, User, HelpCircle, UserPlus } from 'lucide-react';
+import { Droplet, Heart, Calendar, Palette, Bell, User, HelpCircle, UserPlus, History } from 'lucide-react';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 export function Navbar() {
@@ -43,6 +43,15 @@ export function Navbar() {
             >
               <Heart className="w-4 h-4" />
               我的收藏
+            </Link>
+            <Link
+              to="/browse-history"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/browse-history' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              浏览历史
             </Link>
             <Link
               to="/artist-dashboard"
@@ -112,6 +121,13 @@ export function Navbar() {
               title="我的收藏"
             >
               <Heart className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/browse-history"
+              className="md:hidden p-2 text-gray-400 hover:text-blood transition-colors"
+              title="浏览历史"
+            >
+              <History className="w-5 h-5" />
             </Link>
             <Link
               to="/artist-dashboard"

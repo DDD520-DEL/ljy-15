@@ -278,3 +278,8 @@ export interface ArtistApplication {
   createdAt: string;
   reviewedAt?: string;
 }
+
+export interface BrowseHistoryItem {
+  artist: Artist;
+  browsedAt: string;
+}

@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus, Coupon, UserCoupon, CouponType, BrowseHistoryItem } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -288,6 +288,25 @@ export async function recordBrowse(artistId: string): Promise<boolean> {
   const res = await request<{ recorded: boolean }>('/recommendations/browse', {
     method: 'POST',
     body: JSON.stringify({ artistId }),
+  });
+  return res.success;
+}
+
+export async function getBrowseHistory(): Promise<BrowseHistoryItem[]> {
+  const res = await request<BrowseHistoryItem[]>('/recommendations/history');
+  return res.success && res.data ? res.data : [];
+}
+
+export async function removeBrowseHistory(artistId: string): Promise<boolean> {
+  const res = await request(`/recommendations/history/${artistId}`, {
+    method: 'DELETE',
+  });
+  return res.success;
+}
+
+export async function clearBrowseHistory(): Promise<boolean> {
+  const res = await request('/recommendations/history', {
+    method: 'DELETE',
   });
   return res.success;
 }

@@ -59,6 +59,40 @@ router.get('/history', (_req: Request, res: Response) => {
   }
 });
 
+router.delete('/history/:artistId', (req: Request, res: Response) => {
+  try {
+    const { artistId } = req.params;
+    const idx = browseHistory.findIndex(r => r.artistId === artistId);
+    if (idx > -1) {
+      browseHistory.splice(idx, 1);
+    }
+    res.json({
+      success: true,
+      data: { removed: true }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '删除浏览记录失败',
+    });
+  }
+});
+
+router.delete('/history', (_req: Request, res: Response) => {
+  try {
+    browseHistory.length = 0;
+    res.json({
+      success: true,
+      data: { cleared: true }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: '清空浏览历史失败',
+    });
+  }
+});
+
 router.get('/guess', (req: Request, res: Response) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 8, 1), 20);

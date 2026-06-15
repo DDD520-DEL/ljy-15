@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Artist, Style, ArtistQuery } from '../../shared/types';
+import type { Artist, Style, ArtistQuery, BrowseHistoryItem } from '../../shared/types';
 import {
   getArtists,
   getStyles,
@@ -9,6 +9,9 @@ import {
   removeFavorite,
   recordBrowse,
   getRecommendations,
+  getBrowseHistory,
+  removeBrowseHistory,
+  clearBrowseHistory,
 } from '../lib/api';
 
 const FILTERS_STORAGE_KEY = 'inkmatch_home_filters';
@@ -65,7 +68,9 @@ interface AppState {
   styles: Style[];
   regions: string[];
   favorites: Artist[];
+  browseHistory: BrowseHistoryItem[];
   loading: boolean;
+  browseHistoryLoading: boolean;
   filters: ArtistQuery;
   recommendedArtists: Artist[];
   recommendedBasedOnStyles: string[];
@@ -74,12 +79,15 @@ interface AppState {
   fetchStyles: () => Promise<void>;
   fetchRegions: () => Promise<void>;
   fetchFavorites: () => Promise<void>;
+  fetchBrowseHistory: () => Promise<void>;
   setFilters: (filters: Partial<ArtistQuery>) => void;
   resetFilters: () => void;
   toggleFavorite: (artistId: string) => Promise<boolean>;
   isFavorite: (artistId: string) => boolean;
   recordArtistBrowse: (artistId: string) => Promise<void>;
   fetchRecommendations: (limit?: number) => Promise<void>;
+  removeBrowseHistoryItem: (artistId: string) => Promise<boolean>;
+  clearAllBrowseHistory: () => Promise<boolean>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -87,7 +95,9 @@ export const useStore = create<AppState>((set, get) => ({
   styles: [],
   regions: [],
   favorites: [],
+  browseHistory: [],
   loading: false,
+  browseHistoryLoading: false,
   filters: loadFiltersFromStorage(),
   recommendedArtists: [],
   recommendedBasedOnStyles: [],
@@ -112,6 +122,12 @@ export const useStore = create<AppState>((set, get) => ({
   fetchFavorites: async () => {
     const favorites = await getFavorites();
     set({ favorites });
+  },
+
+  fetchBrowseHistory: async () => {
+    set({ browseHistoryLoading: true });
+    const history = await getBrowseHistory();
+    set({ browseHistory: history, browseHistoryLoading: false });
   },
 
   setFilters: (filters) => {
@@ -155,5 +171,21 @@ export const useStore = create<AppState>((set, get) => ({
       recommendedBasedOnStyles: result.basedOnStyles,
       recommendationsLoading: false,
     });
+  },
+
+  removeBrowseHistoryItem: async (artistId) => {
+    const success = await removeBrowseHistory(artistId);
+    if (success) {
+      await get().fetchBrowseHistory();
+    }
+    return success;
+  },
+
+  clearAllBrowseHistory: async () => {
+    const success = await clearBrowseHistory();
+    if (success) {
+      await get().fetchBrowseHistory();
+    }
+    return success;
   },
 }));
