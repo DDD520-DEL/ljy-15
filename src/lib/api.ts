@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile, ArtistApplication, ArtistApplicationRequest, ApplicationStatus } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -314,5 +314,70 @@ export async function updateUserProfile(data: Partial<Pick<UserProfile, 'nicknam
     success: res.success,
     message: res.message,
     data: res.data,
+  };
+}
+
+export async function submitArtistApplication(data: ArtistApplicationRequest): Promise<{ success: boolean; message?: string; application?: ArtistApplication }> {
+  const res = await request<ArtistApplication>('/applications', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    application: res.data,
+  };
+}
+
+interface ApplicationsResponse {
+  data: ArtistApplication[];
+  timestamp: number;
+}
+
+function isApplicationsResponse(data: unknown): data is ApplicationsResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'data' in data &&
+    Array.isArray((data as ApplicationsResponse).data)
+  );
+}
+
+export async function getArtistApplications(phone?: string, status?: ApplicationStatus): Promise<{ data: ArtistApplication[]; timestamp: number }> {
+  const params = new URLSearchParams();
+  if (phone) params.set('phone', phone);
+  if (status) params.set('status', status);
+  const queryStr = params.toString();
+  const res = await request<ApplicationsResponse>(`/applications${queryStr ? `?${queryStr}` : ''}`);
+  
+  let applications: ArtistApplication[] = [];
+  let timestamp = Date.now();
+  
+  if (res.success && res.data) {
+    if (isApplicationsResponse(res.data)) {
+      applications = res.data.data;
+      timestamp = res.data.timestamp;
+    } else if (Array.isArray(res.data)) {
+      applications = res.data;
+    }
+  }
+  
+  return { data: applications, timestamp };
+}
+
+export async function getArtistApplication(id: string): Promise<ArtistApplication | null> {
+  const res = await request<ArtistApplication>(`/applications/${id}`);
+  return res.success && res.data ? res.data : null;
+}
+
+export async function updateApplicationStatus(id: string, status: ApplicationStatus, reviewNote?: string): Promise<{ success: boolean; message?: string; application?: ArtistApplication }> {
+  const res = await request<ArtistApplication>(`/applications/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reviewNote }),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    application: res.data,
   };
 }

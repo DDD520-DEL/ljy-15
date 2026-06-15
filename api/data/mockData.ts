@@ -1,4 +1,4 @@
-import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot } from '../../shared/types';
+import type { Artist, Style, Review, Booking, Notification, BookingStatus, TimeSlot, ArtistApplication, ArtistApplicationRequest, ApplicationStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS, TIME_SLOTS } from '../../shared/types';
 
 export const styles: Style[] = [
@@ -302,4 +302,51 @@ export function markAllNotificationsAsRead(contact?: string, artistId?: string):
     touchNotificationUpdate();
   }
   return hasUpdate;
+}
+
+export const artistApplications: ArtistApplication[] = [];
+export let lastApplicationUpdate = Date.now();
+
+export function touchApplicationUpdate() {
+  lastApplicationUpdate = Date.now();
+}
+
+export function createApplication(data: ArtistApplicationRequest): ArtistApplication {
+  const application: ArtistApplication = {
+    id: `application-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...data,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+  artistApplications.unshift(application);
+  touchApplicationUpdate();
+  return application;
+}
+
+export function getApplicationById(id: string): ArtistApplication | undefined {
+  return artistApplications.find(a => a.id === id);
+}
+
+export function getApplicationsByPhone(phone: string): ArtistApplication[] {
+  return artistApplications.filter(a => a.phone === phone);
+}
+
+export function getAllApplications(status?: ApplicationStatus): ArtistApplication[] {
+  let filtered = [...artistApplications];
+  if (status) {
+    filtered = filtered.filter(a => a.status === status);
+  }
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function updateApplicationStatus(id: string, status: ApplicationStatus, reviewNote?: string): ArtistApplication | null {
+  const application = getApplicationById(id);
+  if (!application) return null;
+  application.status = status;
+  application.reviewedAt = new Date().toISOString();
+  if (reviewNote) {
+    application.reviewNote = reviewNote;
+  }
+  touchApplicationUpdate();
+  return application;
 }

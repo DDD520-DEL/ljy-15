@@ -200,3 +200,46 @@ export interface ArtistAnalytics {
   avgRating: number;
   totalReviews: number;
 }
+
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  rejected: '已拒绝',
+};
+
+export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
+  pending: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  approved: 'bg-green-500/20 text-green-400 border-green-500/30',
+  rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+
+export interface ArtistApplicationRequest {
+  name: string;
+  phone: string;
+  email?: string;
+  bio: string;
+  styles: string[];
+  city: string;
+  wechat?: string;
+  portfolioLinks?: string;
+  note?: string;
+}
+
+export interface ArtistApplication {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  bio: string;
+  styles: string[];
+  city: string;
+  wechat?: string;
+  portfolioLinks?: string;
+  note?: string;
+  status: ApplicationStatus;
+  reviewNote?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
