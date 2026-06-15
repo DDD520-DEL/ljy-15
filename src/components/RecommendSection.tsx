@@ -90,18 +90,10 @@ export function RecommendSection() {
   } = useStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasFetched = useRef(false);
 
   useEffect(() => {
-    if (!hasFetched.current) {
-      hasFetched.current = true;
-      fetchRecommendations(8);
-    }
-  }, [fetchRecommendations]);
-
-  useEffect(() => {
-    hasFetched.current = false;
-  }, [favorites.length]);
+    fetchRecommendations(8);
+  }, [fetchRecommendations, favorites.length]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
