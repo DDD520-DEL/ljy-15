@@ -1,4 +1,4 @@
-import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason } from '../../shared/types';
+import type { Artist, Style, BookingRequest, Booking, Review, ApiResponse, ArtistQuery, BookingStatus, Notification, TimeSlot, ArtistAnalytics, CancellationReason, UserProfile } from '../../shared/types';
 import { TIME_SLOTS } from '../../shared/types';
 
 const API_BASE = '/api';
@@ -298,4 +298,21 @@ export async function getRecommendations(limit?: number): Promise<{ artists: Art
   const queryStr = params.toString();
   const res = await request<{ artists: Artist[]; basedOnStyles: string[] }>(`/recommendations/guess${queryStr ? `?${queryStr}` : ''}`);
   return res.success && res.data ? res.data : { artists: [], basedOnStyles: [] };
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const res = await request<UserProfile>('/user/profile');
+  return res.success && res.data ? res.data : null;
+}
+
+export async function updateUserProfile(data: Partial<Pick<UserProfile, 'nickname' | 'avatar' | 'phone'>>): Promise<{ success: boolean; message?: string; data?: UserProfile }> {
+  const res = await request<UserProfile>('/user/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  return {
+    success: res.success,
+    message: res.message,
+    data: res.data,
+  };
 }

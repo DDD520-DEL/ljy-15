@@ -183,6 +183,14 @@ export interface RatingDistribution {
   count: number;
 }
 
+export interface UserProfile {
+  id: string;
+  nickname: string;
+  avatar: string;
+  phone: string;
+  createdAt: string;
+}
+
 export interface ArtistAnalytics {
   bookingTrend: DailyBookingTrend[];
   totalRevenue: number;

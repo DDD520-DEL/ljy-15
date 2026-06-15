@@ -6,6 +6,7 @@ import { MyBookings } from "@/pages/MyBookings";
 import { ArtistDashboard } from "@/pages/ArtistDashboard";
 import { ArtistAnalytics } from "@/pages/ArtistAnalytics";
 import { Notifications } from "@/pages/Notifications";
+import { UserProfile } from "@/pages/UserProfile";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/artist-dashboard" element={<ArtistDashboard />} />
         <Route path="/artist-analytics" element={<ArtistAnalytics />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/profile" element={<UserProfile />} />
         <Route path="*" element={<Home />} />
       </Routes>
     </Router>

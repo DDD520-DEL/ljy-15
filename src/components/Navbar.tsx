@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Droplet, Heart, Calendar, Palette, Bell } from 'lucide-react';
+import { Droplet, Heart, Calendar, Palette, Bell, User } from 'lucide-react';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 export function Navbar() {
@@ -53,6 +53,15 @@ export function Navbar() {
               <Palette className="w-4 h-4" />
               艺术家后台
             </Link>
+            <Link
+              to="/profile"
+              className={`px-4 py-2 text-sm transition-colors flex items-center gap-1.5 ${
+                location.pathname === '/profile' ? 'text-blood' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              个人中心
+            </Link>
           </div>
 
           <div className="flex items-center gap-1">
@@ -92,6 +101,13 @@ export function Navbar() {
               title="艺术家后台"
             >
               <Palette className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/profile"
+              className="md:hidden p-2 text-gray-400 hover:text-blood transition-colors"
+              title="个人中心"
+            >
+              <User className="w-5 h-5" />
             </Link>
           </div>
         </div>
