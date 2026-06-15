@@ -29,6 +29,8 @@ export async function getArtists(query?: ArtistQuery): Promise<Artist[]> {
   if (query?.priceMin) params.set('priceMin', String(query.priceMin));
   if (query?.priceMax) params.set('priceMax', String(query.priceMax));
   if (query?.keyword) params.set('keyword', query.keyword);
+  if (query?.sortBy) params.set('sortBy', query.sortBy);
+  if (query?.sortOrder) params.set('sortOrder', query.sortOrder);
 
   const queryStr = params.toString();
   const res = await request<Artist[]>(`/artists${queryStr ? `?${queryStr}` : ''}`);

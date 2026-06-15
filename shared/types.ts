@@ -146,12 +146,17 @@ export interface Review {
   createdAt: string;
 }
 
+export type SortBy = 'rating' | 'popularity' | 'price';
+export type SortOrder = 'asc' | 'desc';
+
 export interface ArtistQuery {
   styles?: string[];
   region?: string;
   priceMin?: number;
   priceMax?: number;
   keyword?: string;
+  sortBy?: SortBy;
+  sortOrder?: SortOrder;
 }
 
 export interface ApiResponse<T> {

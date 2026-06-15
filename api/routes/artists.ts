@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { artists, addArtistWork, removeArtistWork, bookings, allReviews } from '../data/mockData';
-import type { Artist, WorkUploadForm, ArtistAnalytics, DailyBookingTrend, RatingDistribution } from '../../shared/types';
+import type { Artist, WorkUploadForm, ArtistAnalytics, DailyBookingTrend, RatingDistribution, SortBy, SortOrder } from '../../shared/types';
 
 const router = Router();
 
 router.get('/', (req: Request, res: Response) => {
   try {
-    const { styles, region, priceMin, priceMax, keyword } = req.query;
+    const { styles, region, priceMin, priceMax, keyword, sortBy, sortOrder } = req.query;
 
     let filtered: Artist[] = [...artists];
 
@@ -38,6 +38,42 @@ router.get('/', (req: Request, res: Response) => {
         a.bio.toLowerCase().includes(kw) ||
         a.styles.some(s => s.toLowerCase().includes(kw))
       );
+    }
+
+    const validSortBy = sortBy === 'rating' || sortBy === 'popularity' || sortBy === 'price' ? sortBy as SortBy : null;
+    const validSortOrder = sortOrder === 'asc' || sortOrder === 'desc' ? sortOrder as SortOrder : 'desc';
+
+    if (validSortBy) {
+      const artistBookingsCount: Record<string, number> = {};
+      bookings.forEach(b => {
+        artistBookingsCount[b.artistId] = (artistBookingsCount[b.artistId] || 0) + 1;
+      });
+
+      filtered.sort((a, b) => {
+        let comparison = 0;
+
+        if (validSortBy === 'rating') {
+          if (a.avgRating !== b.avgRating) {
+            comparison = a.avgRating - b.avgRating;
+          } else {
+            comparison = a.reviewCount - b.reviewCount;
+          }
+        } else if (validSortBy === 'popularity') {
+          const aBookings = artistBookingsCount[a.id] || 0;
+          const bBookings = artistBookingsCount[b.id] || 0;
+          if (aBookings !== bBookings) {
+            comparison = aBookings - bBookings;
+          } else {
+            comparison = a.reviewCount - b.reviewCount;
+          }
+        } else if (validSortBy === 'price') {
+          const aPrice = (a.priceMin + a.priceMax) / 2;
+          const bPrice = (b.priceMin + b.priceMax) / 2;
+          comparison = aPrice - bPrice;
+        }
+
+        return validSortOrder === 'asc' ? comparison : -comparison;
+      });
     }
 
     res.json({

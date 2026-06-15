@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Artist, Style, ArtistQuery, BrowseHistoryItem } from '../../shared/types';
+import type { Artist, Style, ArtistQuery, BrowseHistoryItem, SortBy, SortOrder } from '../../shared/types';
 import {
   getArtists,
   getStyles,
@@ -15,6 +15,9 @@ import {
 } from '../lib/api';
 
 const FILTERS_STORAGE_KEY = 'inkmatch_home_filters';
+
+const validSortByValues: SortBy[] = ['rating', 'popularity', 'price'];
+const validSortOrderValues: SortOrder[] = ['asc', 'desc'];
 
 const loadFiltersFromStorage = (): ArtistQuery => {
   if (typeof window === 'undefined') return {};
@@ -38,6 +41,12 @@ const loadFiltersFromStorage = (): ArtistQuery => {
     if (parsed.keyword && typeof parsed.keyword === 'string') {
       result.keyword = parsed.keyword;
     }
+    if (parsed.sortBy && validSortByValues.includes(parsed.sortBy)) {
+      result.sortBy = parsed.sortBy;
+    }
+    if (parsed.sortOrder && validSortOrderValues.includes(parsed.sortOrder)) {
+      result.sortOrder = parsed.sortOrder;
+    }
     return result;
   } catch {
     return {};
@@ -52,7 +61,9 @@ const saveFiltersToStorage = (filters: ArtistQuery) => {
       filters.region ||
       typeof filters.priceMin === 'number' ||
       typeof filters.priceMax === 'number' ||
-      filters.keyword;
+      filters.keyword ||
+      filters.sortBy ||
+      filters.sortOrder;
     if (hasAnyFilter) {
       localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
     } else {

@@ -17,7 +17,7 @@ export function Home() {
 
   useEffect(() => {
     fetchArtists();
-  }, [fetchArtists, filters.styles, filters.region, filters.priceMin, filters.priceMax, filters.keyword]);
+  }, [fetchArtists, filters.styles, filters.region, filters.priceMin, filters.priceMax, filters.keyword, filters.sortBy, filters.sortOrder]);
 
   return (
     <div className="min-h-screen">
