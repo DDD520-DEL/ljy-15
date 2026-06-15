@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Send, CheckCircle, Calendar, Clock, Loader2, Ticket } from 'lucide-react';
-import type { Artist, TimeSlot, Coupon } from '../../shared/types';
+import { X, Send, CheckCircle, Calendar, Clock, Loader2, Ticket, Share2 } from 'lucide-react';
+import type { Artist, TimeSlot, Coupon, Booking } from '../../shared/types';
 import { submitBooking, getAvailableSlots, getAvailableCoupons } from '../lib/api';
+import { BookingShareCard } from './BookingShareCard';
 
 interface Props {
   open: boolean;
@@ -58,6 +59,8 @@ export function BookingModal({ open, artist, onClose }: Props) {
   const [selectedCouponId, setSelectedCouponId] = useState<string>('');
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const [showCouponList, setShowCouponList] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
 
   const resetForm = () => {
     setStyle('');
@@ -76,6 +79,8 @@ export function BookingModal({ open, artist, onClose }: Props) {
     setCoupons([]);
     setSelectedCouponId('');
     setShowCouponList(false);
+    setCreatedBooking(null);
+    setShareCardOpen(false);
   };
 
   const handleClose = () => {
@@ -194,10 +199,8 @@ export function BookingModal({ open, artist, onClose }: Props) {
     setSubmitting(false);
 
     if (result.success) {
+      setCreatedBooking(result.booking || null);
       setSubmitted(true);
-      setTimeout(() => {
-        handleClose();
-      }, 2500);
     } else {
       setErrorMsg(result.message || '提交失败，请稍后重试');
     }
@@ -234,9 +237,18 @@ export function BookingModal({ open, artist, onClose }: Props) {
           <div className="p-10 text-center flex-shrink-0">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-white text-lg font-medium mb-2">预约意向已提交</h3>
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-400 text-sm mb-5">
               纹身师将尽快通过您提供的联系方式与您取得联系
             </p>
+            {createdBooking && (
+              <button
+                onClick={() => setShareCardOpen(true)}
+                className="btn-outline inline-flex items-center gap-2 text-sm"
+              >
+                <Share2 className="w-4 h-4" />
+                分享预约卡片
+              </button>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto flex-1">
@@ -518,6 +530,13 @@ export function BookingModal({ open, artist, onClose }: Props) {
           </form>
         )}
       </div>
+
+      <BookingShareCard
+        open={shareCardOpen}
+        booking={createdBooking}
+        artist={artist}
+        onClose={() => setShareCardOpen(false)}
+      />
     </div>
   );
 }

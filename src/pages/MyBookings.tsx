@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, Calendar, Clock, Loader2, User, RefreshCw, Bell, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Loader2, User, RefreshCw, Bell, CheckCircle, XCircle, Share2 } from 'lucide-react';
 import type { Booking, Artist, BookingStatus } from '../../shared/types';
 import { BOOKING_STATUS_LABELS } from '../../shared/types';
 import { getArtist } from '../lib/api';
@@ -9,6 +9,7 @@ import { Navbar } from '../components/Navbar';
 import { BookingStatusBadge } from '../components/BookingStatusBadge';
 import { BookingStatusTimeline } from '../components/BookingStatusTimeline';
 import { CancelBookingModal } from '../components/CancelBookingModal';
+import { BookingShareCard } from '../components/BookingShareCard';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 function formatDate(dateStr: string) {
@@ -30,6 +31,8 @@ export function MyBookings() {
   const [highlightedBookingId, setHighlightedBookingId] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancellingBooking, setCancellingBooking] = useState<Booking | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [sharingBooking, setSharingBooking] = useState<Booking | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialSearchDone = useRef(false);
   const { setUser: setNotificationUser } = useNotificationStore();
@@ -342,6 +345,18 @@ export function MyBookings() {
                             状态更新：{formatDate(booking.statusUpdatedAt)}
                           </div>
                         )}
+                        {booking.status !== 'cancelled' && artist && (
+                          <button
+                            onClick={() => {
+                              setSharingBooking(booking);
+                              setShareModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gold hover:text-white hover:bg-gold/20 border border-gold/30 hover:border-gold transition-all duration-200"
+                          >
+                            <Share2 className="w-4 h-4" />
+                            分享
+                          </button>
+                        )}
                         {canCancelBooking(booking) && (
                           <button
                             onClick={() => handleOpenCancelModal(booking)}
@@ -366,6 +381,13 @@ export function MyBookings() {
         booking={cancellingBooking}
         onClose={handleCloseCancelModal}
         onCancelled={handleBookingCancelled}
+      />
+
+      <BookingShareCard
+        open={shareModalOpen}
+        booking={sharingBooking}
+        artist={sharingBooking ? artists[sharingBooking.artistId] : null}
+        onClose={() => { setShareModalOpen(false); setSharingBooking(null); }}
       />
     </div>
   );
