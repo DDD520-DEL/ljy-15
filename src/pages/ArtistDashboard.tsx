@@ -148,10 +148,11 @@ export function ArtistDashboard() {
       } else {
         await batchUpsertPriceCalendar(
           selectedArtist.id,
-          datesArray[0],
-          datesArray[datesArray.length - 1],
           min,
           max,
+          datesArray,
+          undefined,
+          undefined,
           priceNote || undefined
         );
       }
@@ -180,7 +181,7 @@ export function ArtistDashboard() {
       if (datesArray.length === 1) {
         await deletePriceCalendarEntry(selectedArtist.id, datesArray[0]);
       } else {
-        await deletePriceCalendarRange(selectedArtist.id, datesArray[0], datesArray[datesArray.length - 1]);
+        await deletePriceCalendarRange(selectedArtist.id, datesArray);
       }
       setSelectedDates(new Set());
       setPriceMin('');

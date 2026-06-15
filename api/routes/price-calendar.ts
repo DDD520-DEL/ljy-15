@@ -7,8 +7,10 @@ import {
   getPriceInfos,
   upsertPriceCalendarEntry,
   batchUpsertPriceCalendar,
+  batchUpsertPriceCalendarByDates,
   deletePriceCalendarEntry,
   deletePriceCalendarRange,
+  deletePriceCalendarByDates,
   lastPriceCalendarUpdate,
 } from '../data/mockData';
 import type { PriceCalendarUpsertRequest } from '../../shared/types';
@@ -246,8 +248,9 @@ router.put('/artists/:artistId/batch', (req: Request, res: Response) => {
   try {
     const { artistId } = req.params;
     const body = req.body as {
-      startDate: string;
-      endDate: string;
+      startDate?: string;
+      endDate?: string;
+      dates?: string[];
       priceMin: number;
       priceMax: number;
       note?: string;
@@ -261,12 +264,60 @@ router.put('/artists/:artistId/batch', (req: Request, res: Response) => {
       });
     }
 
-    const { startDate, endDate, priceMin, priceMax, note } = body;
+    const { priceMin, priceMax, note } = body;
+
+    if (priceMin === undefined || priceMax === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供 priceMin 和 priceMax',
+      });
+    }
+
+    if (typeof priceMin !== 'number' || priceMin < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'priceMin 必须为非负数',
+      });
+    }
+
+    if (typeof priceMax !== 'number' || priceMax < priceMin) {
+      return res.status(400).json({
+        success: false,
+        message: 'priceMax 必须大于或等于 priceMin',
+      });
+    }
+
+    if (body.dates && Array.isArray(body.dates) && body.dates.length > 0) {
+      const invalidDates = body.dates.filter(d => !isValidDate(d));
+      if (invalidDates.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `以下日期格式无效：${invalidDates.join(', ')}，请使用 YYYY-MM-DD 格式`,
+        });
+      }
+
+      const entries = batchUpsertPriceCalendarByDates(artistId, body.dates, priceMin, priceMax, note);
+
+      if (!entries) {
+        return res.status(500).json({
+          success: false,
+          message: '批量设置价格日历失败',
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: entries,
+        message: `已成功为 ${entries.length} 天设置价格`,
+      });
+    }
+
+    const { startDate, endDate } = body;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: '请提供 startDate 和 endDate',
+        message: '请提供 dates 数组，或提供 startDate 和 endDate',
       });
     }
 
@@ -288,27 +339,6 @@ router.put('/artists/:artistId/batch', (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: '开始日期不能晚于结束日期',
-      });
-    }
-
-    if (priceMin === undefined || priceMax === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: '请提供 priceMin 和 priceMax',
-      });
-    }
-
-    if (typeof priceMin !== 'number' || priceMin < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'priceMin 必须为非负数',
-      });
-    }
-
-    if (typeof priceMax !== 'number' || priceMax < priceMin) {
-      return res.status(400).json({
-        success: false,
-        message: 'priceMax 必须大于或等于 priceMin',
       });
     }
 
@@ -378,6 +408,7 @@ router.delete('/artists/:artistId/batch', (req: Request, res: Response) => {
   try {
     const { artistId } = req.params;
     const { startDate, endDate } = req.query;
+    const body = req.body as { dates?: string[] } | undefined;
 
     const artist = artists.find(a => a.id === artistId);
     if (!artist) {
@@ -387,13 +418,31 @@ router.delete('/artists/:artistId/batch', (req: Request, res: Response) => {
       });
     }
 
+    if (body?.dates && Array.isArray(body.dates) && body.dates.length > 0) {
+      const invalidDates = body.dates.filter(d => !isValidDate(d));
+      if (invalidDates.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `以下日期格式无效：${invalidDates.join(', ')}，请使用 YYYY-MM-DD 格式`,
+        });
+      }
+
+      const deletedCount = deletePriceCalendarByDates(artistId, body.dates);
+
+      return res.json({
+        success: true,
+        message: `已删除 ${deletedCount} 条价格设置`,
+        data: { deletedCount },
+      });
+    }
+
     const startDateStr = startDate as string | undefined;
     const endDateStr = endDate as string | undefined;
 
     if (!startDateStr || !endDateStr) {
       return res.status(400).json({
         success: false,
-        message: '请提供 startDate 和 endDate',
+        message: '请在请求体中提供 dates 数组，或在查询参数中提供 startDate 和 endDate',
       });
     }
 

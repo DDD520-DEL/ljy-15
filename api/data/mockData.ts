@@ -973,3 +973,39 @@ export function deletePriceCalendarRange(artistId: string, startDate: string, en
   }
   return deletedCount;
 }
+
+export function batchUpsertPriceCalendarByDates(
+  artistId: string,
+  dates: string[],
+  priceMin: number,
+  priceMax: number,
+  note?: string
+): PriceCalendarEntry[] | null {
+  const artist = artists.find(a => a.id === artistId);
+  if (!artist) return null;
+
+  const results: PriceCalendarEntry[] = [];
+  for (const date of dates) {
+    const entry = upsertPriceCalendarEntry(artistId, date, priceMin, priceMax, note);
+    if (entry) {
+      results.push(entry);
+    }
+  }
+
+  return results;
+}
+
+export function deletePriceCalendarByDates(artistId: string, dates: string[]): number {
+  let deletedCount = 0;
+  for (const date of dates) {
+    const index = priceCalendar.findIndex(p => p.artistId === artistId && p.date === date);
+    if (index !== -1) {
+      priceCalendar.splice(index, 1);
+      deletedCount++;
+    }
+  }
+  if (deletedCount > 0) {
+    touchPriceCalendarUpdate();
+  }
+  return deletedCount;
+}

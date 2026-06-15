@@ -643,15 +643,23 @@ export async function upsertPriceCalendarEntry(
 
 export async function batchUpsertPriceCalendar(
   artistId: string,
-  startDate: string,
-  endDate: string,
   priceMin: number,
   priceMax: number,
+  dates?: string[],
+  startDate?: string,
+  endDate?: string,
   note?: string
 ): Promise<{ success: boolean; message?: string; data?: PriceCalendarEntry[] }> {
+  const body: Record<string, unknown> = { priceMin, priceMax, note };
+  if (dates && dates.length > 0) {
+    body.dates = dates;
+  } else if (startDate && endDate) {
+    body.startDate = startDate;
+    body.endDate = endDate;
+  }
   const res = await request<PriceCalendarEntry[]>(`/price-calendar/artists/${artistId}/batch`, {
     method: 'PUT',
-    body: JSON.stringify({ startDate, endDate, priceMin, priceMax, note }),
+    body: JSON.stringify(body),
   });
   return {
     success: res.success,
@@ -675,15 +683,22 @@ export async function deletePriceCalendarEntry(
 
 export async function deletePriceCalendarRange(
   artistId: string,
-  startDate: string,
-  endDate: string
+  dates?: string[],
+  startDate?: string,
+  endDate?: string
 ): Promise<{ success: boolean; message?: string; data?: { deletedCount: number } }> {
-  const res = await request<{ deletedCount: number }>(
-    `/price-calendar/artists/${artistId}/batch?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
-    {
-      method: 'DELETE',
-    }
-  );
+  let url: string;
+  const options: RequestInit = { method: 'DELETE' };
+  if (dates && dates.length > 0) {
+    url = `/price-calendar/artists/${artistId}/batch`;
+    options.body = JSON.stringify({ dates });
+    options.headers = { 'Content-Type': 'application/json' };
+  } else if (startDate && endDate) {
+    url = `/price-calendar/artists/${artistId}/batch?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  } else {
+    return { success: false, message: '请提供 dates 数组或 startDate/endDate' };
+  }
+  const res = await request<{ deletedCount: number }>(url, options);
   return {
     success: res.success,
     message: res.message,

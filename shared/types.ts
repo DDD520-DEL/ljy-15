@@ -392,6 +392,17 @@ export interface PriceCalendarBatchUpsertRequest {
   entries: Omit<PriceCalendarUpsertRequest, 'date'> & { startDate: string; endDate: string }[];
 }
 
+export interface PriceCalendarDatesUpsertRequest {
+  dates: string[];
+  priceMin: number;
+  priceMax: number;
+  note?: string;
+}
+
+export interface PriceCalendarDatesDeleteRequest {
+  dates: string[];
+}
+
 export interface PriceInfo {
   date: string;
   priceMin: number;
