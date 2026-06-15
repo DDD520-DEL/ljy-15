@@ -69,7 +69,7 @@ export function ArtistDetail() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const { toggleFavorite, isFavorite, fetchFavorites } = useStore();
+  const { toggleFavorite, isFavorite, fetchFavorites, recordArtistBrowse } = useStore();
   const fav = artist ? isFavorite(artist.id) : false;
   const isOwner = true;
 
@@ -92,6 +92,12 @@ export function ArtistDetail() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      recordArtistBrowse(id);
+    }
+  }, [id, recordArtistBrowse]);
 
   useEffect(() => {
     if (!artist) return;

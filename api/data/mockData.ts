@@ -173,6 +173,13 @@ export const allReviews: Review[] = [];
 export const artists: Artist[] = generateArtists();
 export let favorites: string[] = [];
 
+export interface BrowseRecord {
+  artistId: string;
+  browsedAt: string;
+}
+
+export let browseHistory: BrowseRecord[] = [];
+
 function generateTestBookings(): Booking[] {
   const testBookings: Booking[] = [];
   const statuses: BookingStatus[] = ['pending', 'confirmed', 'in_progress', 'completed'];

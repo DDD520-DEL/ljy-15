@@ -7,6 +7,8 @@ import {
   getFavorites,
   addFavorite,
   removeFavorite,
+  recordBrowse,
+  getRecommendations,
 } from '../lib/api';
 
 const FILTERS_STORAGE_KEY = 'inkmatch_home_filters';
@@ -65,6 +67,9 @@ interface AppState {
   favorites: Artist[];
   loading: boolean;
   filters: ArtistQuery;
+  recommendedArtists: Artist[];
+  recommendedBasedOnStyles: string[];
+  recommendationsLoading: boolean;
   fetchArtists: () => Promise<void>;
   fetchStyles: () => Promise<void>;
   fetchRegions: () => Promise<void>;
@@ -73,6 +78,8 @@ interface AppState {
   resetFilters: () => void;
   toggleFavorite: (artistId: string) => Promise<boolean>;
   isFavorite: (artistId: string) => boolean;
+  recordArtistBrowse: (artistId: string) => Promise<void>;
+  fetchRecommendations: (limit?: number) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -82,6 +89,9 @@ export const useStore = create<AppState>((set, get) => ({
   favorites: [],
   loading: false,
   filters: loadFiltersFromStorage(),
+  recommendedArtists: [],
+  recommendedBasedOnStyles: [],
+  recommendationsLoading: false,
 
   fetchArtists: async () => {
     set({ loading: true });
@@ -131,5 +141,19 @@ export const useStore = create<AppState>((set, get) => ({
 
   isFavorite: (artistId) => {
     return get().favorites.some(a => a.id === artistId);
+  },
+
+  recordArtistBrowse: async (artistId) => {
+    await recordBrowse(artistId);
+  },
+
+  fetchRecommendations: async (limit = 8) => {
+    set({ recommendationsLoading: true });
+    const result = await getRecommendations(limit);
+    set({
+      recommendedArtists: result.artists,
+      recommendedBasedOnStyles: result.basedOnStyles,
+      recommendationsLoading: false,
+    });
   },
 }));

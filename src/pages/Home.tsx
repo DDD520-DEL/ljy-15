@@ -4,6 +4,7 @@ import { Navbar } from '../components/Navbar';
 import { StyleTagCloud } from '../components/StyleTagCloud';
 import { FilterBar } from '../components/FilterBar';
 import { Waterfall } from '../components/Waterfall';
+import { RecommendSection } from '../components/RecommendSection';
 import { Sparkles } from 'lucide-react';
 
 export function Home() {
@@ -57,6 +58,8 @@ export function Home() {
       <section className="container pb-8">
         <FilterBar />
       </section>
+
+      <RecommendSection />
 
       <section className="container pb-20">
         <div className="flex items-center justify-between mb-6">

@@ -283,3 +283,19 @@ export async function cancelBooking(
     penaltyAmount: res.data?.penaltyAmount,
   };
 }
+
+export async function recordBrowse(artistId: string): Promise<boolean> {
+  const res = await request<{ recorded: boolean }>('/recommendations/browse', {
+    method: 'POST',
+    body: JSON.stringify({ artistId }),
+  });
+  return res.success;
+}
+
+export async function getRecommendations(limit?: number): Promise<{ artists: Artist[]; basedOnStyles: string[] }> {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', String(limit));
+  const queryStr = params.toString();
+  const res = await request<{ artists: Artist[]; basedOnStyles: string[] }>(`/recommendations/guess${queryStr ? `?${queryStr}` : ''}`);
+  return res.success && res.data ? res.data : { artists: [], basedOnStyles: [] };
+}

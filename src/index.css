@@ -54,6 +54,14 @@ body {
 }
 
 @layer components {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   .btn-primary {
     @apply bg-blood hover:bg-blood-light text-white px-6 py-3 font-medium transition-all duration-300 border border-blood hover:shadow-[0_0_20px_rgba(185,28,28,0.4)] active:translate-y-px;
   }
